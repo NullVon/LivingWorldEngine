@@ -31,7 +31,9 @@ export function validateWorld(world) {
       for (const value of [s.priority ?? 0, s.urgency ?? 0]) assert(Number.isFinite(value), 'Situation priority and urgency must be finite');
       if (s.expiresAt != null) assert(Number.isSafeInteger(s.expiresAt) && s.expiresAt >= 0, 'Invalid Situation expiry');
       assert(Array.isArray(s.paths) && (s.paths.length > 0 || Number.isSafeInteger(s.expiresAt)), 'Situation requires a terminal path');
+      const pathIds = new Set();
       for (const path of s.paths) {
+        if (path.id != null) { id(path.id); assert(!pathIds.has(path.id), 'Duplicate Situation path ID'); pathIds.add(path.id); }
         assert(['resolved', 'failed', 'expired', 'transformed', 'cancelled', 'invalidated'].includes(path.lifecycle), 'Invalid terminal lifecycle');
         assert(path.when && typeof path.when === 'object', 'Terminal predicate required');
       }

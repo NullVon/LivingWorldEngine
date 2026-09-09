@@ -1,6 +1,8 @@
-# First six-pillar milestone report
+# Six-pillar and multi-Actor stress milestone report
 
 The clean implementation executes the semantic-free acceptance lifecycle in LWE-Core. OBJECT_1 moves from LOCATION_1 to LOCATION_2 through the fixture-defined `RelocateObject` Shell Action after the player waits and ACTOR_1 communicates an alternate request to ACTOR_2. The Situation persists across Scenes, resolves through a Consequence, and the movement's WHY trace reaches both communications and the player's Wait. The tests also execute two tiny Shell resolvers with different semantic data without modifying Core.
+
+The multi-Actor stress pass adds one small generic hook for Shell-declared competing attempt groups. Core orders numeric values under Shell-selected direction and tie policy, settles each attempt, and revalidates the next against the resulting objective state. The stress fixtures also cover stale and incomplete Actor Views, three terminal paths, Player/autonomous parity, and seeded weighted desires without adding a gameplay pillar.
 
 ## A. Files created or changed
 
@@ -26,6 +28,7 @@ Created:
 - `tests/fixtures.js`
 - `tests/acceptance.test.js`
 - `tests/invariants.test.js`
+- `tests/conflicts.test.js`
 
 The authoritative Word architecture files were read and not modified. No files outside LWE-Core were changed.
 
@@ -48,7 +51,7 @@ Complete within this milestone: the specified lifecycle and WHY graph; instance 
 
 Minimal working implementations: universal Actions with fixed Core semantics, including transitive Give and effect-neutral Event-producing Interact; dynamic candidate eligibility; safe autonomous Decision Context projection; desire-weighted arbitration and numeric contest ordering; Situation terminal predicates and expiry; Shell-controlled repeatable importance opportunities; certain/uncertain claims, direct supersession and explicit forgetting; JSON predicates.
 
-Deferred, not falsely presented as complete: migration from nonexistent earlier Core schemas, history compaction/purging, rich retention scheduling, automatic interruption detection, sophisticated Situation evolution policy, full conflict orchestration, semantic contradiction handling and all genre rules. Terminal paths are structurally required; Core cannot prove that an arbitrary Shell predicate will eventually become true. Use expiry when a finite bound is required.
+Deferred, not falsely presented as complete: migration from nonexistent earlier Core schemas, history compaction/purging, rich retention scheduling, automatic interruption detection, sophisticated Situation evolution policy, richer conflict models, semantic contradiction handling and all genre rules. Terminal paths are structurally required; Core cannot prove that an arbitrary Shell predicate will eventually become true. Use expiry when a finite bound is required.
 
 ## D. Selective OGLWE reuse
 
@@ -64,9 +67,9 @@ Deferred. `packages/dice/README.md` records the intended optional boundary. Core
 
 ## G. Tests
 
-Command: `node --test` on the bundled Node runtime. Cleanup run: **33 passed, 0 failed, 0 skipped**.
+Command: `node --test` on the bundled Node runtime. Multi-Actor stress run: **40 passed, 0 failed, 0 skipped**.
 
-Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move, nested Give, and effect-neutral Interact with downstream Shell Consequences; weighted selection and contest ties; nested Scenes; save version/reference validation; deterministic restoration with already-due queued work; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; visible eligibility hook failures; and checkpoint safety when a final budgeted effect satisfies a Situation.
+Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move, nested Give, and effect-neutral Interact with downstream Shell Consequences; competing Actions with immediate revalidation; deterministic, seeded-random, no-winner, and compatible-simultaneous ties; stale and incomplete Views; three Situation paths; Player/autonomous parity; weighted selection; nested Scenes; save version/reference validation; deterministic restoration with already-due queued work; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; visible eligibility hook failures; and checkpoint safety when a final budgeted effect satisfies a Situation.
 
 ## H. Architecture deviations
 
@@ -85,6 +88,6 @@ Persistent world records use Entities, while Relations/Globals and scene-control
 
 ## J. Recommended next step
 
-Expand the tiny Shell contract fixtures into multi-Actor conflict scenarios: competing attempts, tied contests, stale beliefs and multiple valid Situation paths. Use those tests to determine the smallest conflict-orchestration API before adding a real Shell or Dice.
+Exercise save/restore and nested Scene interruption around declared conflicts, without adding semantic initiative or combat policy. A later real-Shell adapter can then validate the generic hook against application needs before Dice is considered.
 
 The requested milestone is a local commit only. No push or external integration is part of this work.

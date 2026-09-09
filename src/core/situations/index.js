@@ -35,7 +35,7 @@ export function updateSituations(state, shell, recordEvent) {
     const lifecycle = path?.lifecycle ?? (s.expiresAt != null && s.expiresAt <= state.boundary ? 'expired' : null);
     if (!lifecycle) continue;
     const causes = Object.values(state.world.entities).filter(e => e.consequence?.status === 'applied' && e.consequence.changes.some(c => (s.affected ?? []).includes(c.entity))).map(e => e.id);
-    recordEvent({ type: 'situation.changed', causes, data: { situation: item.id, lifecycle }, effects: [{ type: 'situation', entity: item.id, lifecycle }] });
+    recordEvent({ type: 'situation.changed', causes, data: { situation: item.id, lifecycle, path: path?.id ?? null }, effects: [{ type: 'situation', entity: item.id, lifecycle }] });
     count++;
   }
   return count;

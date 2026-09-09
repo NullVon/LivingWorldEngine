@@ -2,7 +2,7 @@
 
 A small, dependency-free implementation of the six LWE Core pillars. Core owns structure and generic resolution; Shell owns meaning. The authoritative architecture is in the two Word documents under `docs/`.
 
-This is the first contract milestone, not a complete game engine. It has no Dice, AI, browser, UI, or named-Shell dependency.
+This is a contract-focused Core, not a complete game engine. It has no Dice, AI, browser, UI, or named-Shell dependency.
 
 ## Run
 
@@ -82,12 +82,14 @@ An Action can include a `situation` reference and current claim IDs in `evidence
 
 For permitted Scene data, pass `startScene({ decision: { shared: {...}, actors: { ACTOR_ID: {...} } } })`; other Scene context is not projected into autonomous decisions. `shell.desires(context)` returns opaque `{id, weight}` entries. A choice may reference one with `{desire: id, attempt}` and Core uses that weight during generic selection. `shell.available(context)` supplies candidate attempts, which Core filters through the normal eligibility path before exposing them as `availableActions`.
 
+For mutually incompatible submitted attempts, `shell.conflicts({attempts, world, boundary})` may return a group such as `{id, entries: [{index, value}], direction, tie}`. Values and their meaning belong to the Shell. Direction is `high-first` or `low-first`; tie policy is `actor-order`, seeded `random`, `no-winner`, or `simultaneous`. Random entries may include a nonnegative `weight`. Core orders the group, settles each attempt's immediate causal work, and revalidates the next attempt against the resulting World State. The conflict decision and losing outcome remain in objective history. See `tests/conflicts.test.js` for the complete semantic-free fixtures.
+
 An important active Situation declares a legitimate `opportunity` claim and requires `shell.surfaceOpportunity({boundary, situation, previousCount, world})`. Returning `true` surfaces that claim during the current boundary. This world-policy hook may inspect its read-only world input; autonomous `choices` still cannot. Core records every occurrence and permits later resurfacing while the Situation remains active; the Shell owns cadence and repetition.
 
 Effects carry a generic operation plus optional `due` (absolute progression boundary) and `when` (JSON predicate). Operations include `create`, `retire`, `move`, `contain`, `data`, `relation`, `global`, `learn`, `forget`, `situation`, and `emit`. Event perception runs after immediate structural effects; presence alone grants nothing. Use explicit later Events when perception of a delayed change is needed. See tests for concrete specifications.
 
 ## Scope
 
-Working but deliberately minimal: numeric weighting/contests, structural predicates, terminal Situation paths, explicit opportunity disclosures, explicit forgetting, manual interruption, and version-1 persistence. Deferred: semantic game policies, history compaction, previous-version migrations, automatic interruption triggers, retention scheduling, richer action/contest orchestration, and Dice.
+Working but deliberately minimal: numeric weighting, Shell-declared competing-attempt groups, deterministic tie policies, immediate Action revalidation, structural predicates, terminal Situation paths, explicit opportunity disclosures, explicit forgetting, manual interruption, and version-1 persistence. Deferred: semantic game policies, history compaction, previous-version migrations, automatic interruption triggers, retention scheduling, richer conflict models, and Dice.
 
 The milestone report is [milestone-report.md](milestone-report.md). `OGLWE` remains read-only historical material. No code was copied from it.

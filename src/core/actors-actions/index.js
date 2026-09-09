@@ -72,7 +72,7 @@ function availableList(state, shell, actor, context) {
   assert(Array.isArray(candidates), 'Available Actions must be an array');
   return candidates.filter(input => {
     if (input.actor !== actor) return false;
-    try { eligibility(state, shell, prepare(input)); return true; }
+    try { eligibility(state, shell, prepare(input), 'selection'); return true; }
     catch (error) {
       if (error instanceof EligibilityDenied) return false;
       throw error;
@@ -99,11 +99,12 @@ export function weightDecisions(choices, desires) {
 
 export function prepare(input) {
   const result = { targets: [], params: {}, evidence: [], ...copy(input) };
+  delete result.conflict;
   assert(typeof result.type === 'string' && Array.isArray(result.targets) && Array.isArray(result.evidence), 'Malformed Action attempt');
   return result;
 }
 
-export function eligibility(state, shell, attempt) {
+export function eligibility(state, shell, attempt, phase = 'resolution') {
   const actor = entity(state.world, attempt.actor);
   assert(actor.actor && actor.lifecycle === 'active', 'Inactive or non-Actor');
   assert(universal[attempt.type] || shell.actions?.[attempt.type]?.resolve, 'Unknown Action');
@@ -122,25 +123,40 @@ export function eligibility(state, shell, attempt) {
     assert(entity(state.world, attempt.situation).situation, 'Not a Situation');
     requireEligible(aware(state.world, attempt.actor, attempt.situation), 'Actor is unaware of Situation');
   }
-  const context = { attempt, world: state.world, view: knowledge };
+  const context = { attempt, world: state.world, view: knowledge, phase };
   const allowed = call(shell.actions?.[attempt.type]?.eligible, context, true);
   assert(typeof allowed === 'boolean', 'Action eligibility must return a boolean');
   requireEligible(allowed, 'Shell denied Action');
   return context;
 }
 
-export function resolveAttempt(state, shell, input, recordEvent) {
+function recordAttempt(state, input) {
   const attempt = prepare(input);
-  // Identity errors are API errors, not fictional failed attempts.
   assert(entity(state.world, attempt.actor).actor, 'Attempt requires an Actor');
   const owned = view(state.world, attempt.actor).filter(c => attempt.evidence.includes(c.id) || c.claim.subject === attempt.situation);
   const evidence = owned.map(c => c.id);
   const record = allocate(state, 'attempt', { ...attempt, evidence, boundary: state.boundary });
+  return { attempt, record };
+}
+
+export function rejectAttempt(state, input, reason, recordEvent, causes = [], conflict = null) {
+  const { attempt, record } = recordAttempt(state, input);
+  return recordEvent({
+    type: 'action.failed', actor: attempt.actor, attempt: record.id, causes,
+    data: { action: attempt.type, reason, ...(conflict ? { conflict } : {}) }, effects: [],
+  });
+}
+
+export function resolveAttempt(state, shell, input, recordEvent, causes = [], conflict = null) {
+  const { attempt, record } = recordAttempt(state, input);
   let context;
   try { context = eligibility(state, shell, attempt); }
   catch (error) {
     if (!(error instanceof EligibilityDenied)) throw error;
-    return recordEvent({ type: 'action.failed', actor: attempt.actor, attempt: record.id, data: { action: attempt.type, reason: error.message }, effects: [] });
+    return recordEvent({
+      type: 'action.failed', actor: attempt.actor, attempt: record.id, causes,
+      data: { action: attempt.type, reason: error.message, ...(conflict ? { conflict } : {}) }, effects: [],
+    });
   }
   const builtIn = universal[attempt.type];
   const result = builtIn
@@ -148,8 +164,8 @@ export function resolveAttempt(state, shell, input, recordEvent) {
     : call(shell.actions[attempt.type].resolve, context);
   assert(result && Array.isArray(result.effects), 'Action resolver must return effects');
   return recordEvent({
-    type: result.type ?? 'action.resolved', actor: attempt.actor, attempt: record.id,
-    data: { action: attempt.type, outcome: result.outcome ?? 'resolved', ...(result.data ?? {}) },
+    type: result.type ?? 'action.resolved', actor: attempt.actor, attempt: record.id, causes,
+    data: { action: attempt.type, outcome: result.outcome ?? 'resolved', ...(result.data ?? {}), ...(conflict ? { conflict } : {}) },
     effects: result.effects,
   });
 }

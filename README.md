@@ -28,13 +28,14 @@ Rules, persistence, diagnostics, and optional packages support these pillars. Th
 
 ## Current milestone
 
-The first semantic-free six-pillar lifecycle and its contract-conformance corrections are implemented.
+The semantic-free six-pillar lifecycle, its contract-conformance corrections, and the multi-Actor stress milestone are implemented.
 
 - Universal `Move` changes only the acting Actor's primary location.
 - The acceptance fixture moves `OBJECT_1` through its Shell-defined `RelocateObject` Action.
 - `Give` supports Entities nested within the acting Actor's containment tree.
 - `Interact` records a meaningful resolved Event and has no default World State effect. Shells may attach consequences through `shell.consequences`.
 - Autonomous decisions receive a read-only projection of legitimate local information, dynamically eligible Actions, and opaque desire weights. They do not receive Objective World State.
+- A Shell may declare groups of competing submitted attempts and provide numeric ordering plus a deterministic tie policy. Core settles and revalidates each ordered attempt without assigning semantic meaning or Player priority.
 - Important Situations use Shell-controlled opportunity cadence and can resurface without a hard-coded lifetime count.
 - Completed Scene boundaries are serializable even when a causal budget leaves pending work. The queue and deterministic control state restore exactly; active or suspended Scenes remain unsavable.
 - Expected Action denials become unavailable or failed attempts. Unexpected eligibility errors remain visible and roll back Scene resolution.
@@ -49,7 +50,7 @@ Node.js 22 or later is required. No dependency installation is needed.
 node --test
 ```
 
-The test suite covers the six-pillar acceptance chain, WHY provenance, two small Shells, persistence and restoration, runtime isolation, delayed Consequences, safe autonomous context, repeated opportunities, universal Actions, containment, validation, rollback, and causal safety limits.
+The test suite covers the six-pillar acceptance chain, WHY provenance, two small Shells, persistence and restoration, runtime isolation, delayed Consequences, safe autonomous context, repeated opportunities, multi-Actor conflicts, stale and incomplete beliefs, multiple Situation paths, universal Actions, containment, validation, rollback, and causal safety limits.
 
 ## Repository layout
 

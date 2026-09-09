@@ -1,8 +1,8 @@
-import { assert, call, copy } from '../../infrastructure/records.js';
-import { decisionBase, decisionContext, prepare, resolveAttempt, weightDecisions } from '../actors-actions/index.js';
+import { assert, call, copy, id } from '../../infrastructure/records.js';
+import { decisionBase, decisionContext, prepare, rejectAttempt, resolveAttempt, weightDecisions } from '../actors-actions/index.js';
 import { drain, hasDue, recordEvent, HARD_LIMIT } from '../events-consequences/index.js';
 import { updateSituations } from '../situations/index.js';
-import { selectWeighted } from '../../infrastructure/rules/index.js';
+import { compareContest, selectWeighted } from '../../infrastructure/rules/index.js';
 
 export function start(state, context = {}) {
   assert(!state.scene, 'A Scene is already open');
@@ -35,6 +35,68 @@ function random(state) {
   return state.random / 4294967296;
 }
 
+function tieOrder(tier, tie, attempts, sample) {
+  const policy = tie?.policy ?? 'actor-order';
+  assert(['actor-order', 'random', 'no-winner', 'simultaneous'].includes(policy), 'Unknown contest tie policy');
+  if (tier.length < 2 || policy === 'simultaneous' || policy === 'no-winner') return tier.map(entry => ({ ...entry, reject: tier.length > 1 && policy === 'no-winner' }));
+  if (policy === 'actor-order') {
+    const order = tie.order ?? [];
+    assert(Array.isArray(order) && new Set(order).size === order.length, 'Invalid contest Actor order');
+    return [...tier].sort((a, b) => {
+      const actorA = attempts[a.index].actor; const actorB = attempts[b.index].actor;
+      const rankA = order.indexOf(actorA); const rankB = order.indexOf(actorB);
+      if (rankA >= 0 || rankB >= 0) return (rankA < 0 ? Infinity : rankA) - (rankB < 0 ? Infinity : rankB);
+      return actorA.localeCompare(actorB) || a.index - b.index;
+    });
+  }
+  const pool = [...tier]; const ordered = [];
+  while (pool.length) {
+    const selected = selectWeighted(pool.map(entry => ({ ...entry, weight: entry.weight ?? 1 })), sample);
+    assert(selected, 'Random contest tie requires positive weight');
+    ordered.push(pool.splice(pool.findIndex(entry => entry.index === selected.index), 1)[0]);
+  }
+  return ordered;
+}
+
+function orderAttempts(state, shell, attempts) {
+  const groups = call(shell.conflicts, { attempts, world: state.world, boundary: state.boundary }, []);
+  assert(Array.isArray(groups), 'Conflict policy must return an array');
+  const assigned = new Set(); const starts = new Map(); const covered = new Set(); const groupIds = new Set();
+  for (const group of groups) {
+    id(group.id); assert(!groupIds.has(group.id), 'Duplicate conflict ID'); groupIds.add(group.id);
+    assert(Array.isArray(group.entries) && group.entries.length >= 2, 'Conflict requires at least two entries');
+    assert(['high-first', 'low-first'].includes(group.direction ?? 'high-first'), 'Unknown contest direction');
+    const entries = group.entries.map(entry => {
+      assert(Number.isSafeInteger(entry.index) && attempts[entry.index], 'Invalid conflict attempt index');
+      assert(!assigned.has(entry.index), 'Attempt belongs to multiple conflicts'); assigned.add(entry.index);
+      assert(Number.isFinite(entry.value), 'Contest values must be finite');
+      if (entry.weight != null) assert(Number.isFinite(entry.weight) && entry.weight >= 0, 'Invalid tie weight');
+      return copy(entry);
+    });
+    let tiers = compareContest(entries);
+    if (group.direction === 'low-first') tiers = tiers.reverse();
+    const ordered = [];
+    tiers.forEach((tier, rank) => {
+      for (const entry of tieOrder(tier, group.tie, attempts, () => random(state))) {
+        ordered.push({
+          index: entry.index, reject: entry.reject,
+          conflict: { id: group.id, value: entry.value, rank, tiePolicy: group.tie?.policy ?? 'actor-order' },
+        });
+      }
+    });
+    const first = Math.min(...entries.map(entry => entry.index));
+    assert(!starts.has(first), 'Conflicts have the same starting attempt');
+    starts.set(first, ordered); entries.forEach(entry => covered.add(entry.index));
+  }
+  const result = [];
+  attempts.forEach((attempt, index) => {
+    if (starts.has(index)) {
+      for (const entry of starts.get(index)) result.push({ ...entry, attempt: copy(attempts[entry.index]) });
+    } else if (!covered.has(index)) result.push({ index, attempt });
+  });
+  return result;
+}
+
 export function resolve(state, shell, options = {}) {
   assert(state.scene?.phase === 'active', 'No active Scene');
   const allowance = options.budget ?? 1000;
@@ -52,9 +114,25 @@ export function resolve(state, shell, options = {}) {
       if (!updateSituations(state, shell, emit)) break;
     } while (budget.left > 0);
   };
-  // Submitted attempts precede delayed world work; each attempt remains distinct.
-  for (const attempt of state.scene.attempts) resolveAttempt(state, shell, attempt, emit);
+  const hasImmediate = () => state.queue.some(ref => {
+    const consequence = state.world.entities[ref].consequence;
+    return consequence.due <= state.boundary && consequence.due === state.world.entities[consequence.event].event.boundary;
+  });
   settle(false);
+  // Each ordered attempt settles before the next so later attempts revalidate.
+  const conflictCauses = new Map();
+  for (const item of orderAttempts(state, shell, state.scene.attempts)) {
+    assert(!hasImmediate(), 'Causal budget exhausted before competing attempts could revalidate');
+    const causes = item.conflict ? (conflictCauses.get(item.conflict.id) ?? []) : [];
+    const eventId = item.reject
+      ? rejectAttempt(state, item.attempt, 'Contest tie policy produced no winner', emit, causes, item.conflict)
+      : resolveAttempt(state, shell, item.attempt, emit, causes, item.conflict);
+    settle(false);
+    if (item.conflict) {
+      const applied = Object.values(state.world.entities).filter(record => record.consequence?.event === eventId && record.consequence.status === 'applied').map(record => record.id);
+      if (applied.length) conflictCauses.set(item.conflict.id, applied);
+    }
+  }
   drain(state, shell, budget, true);
   const processes = call(shell.worldProcesses, { world: state.world, boundary: state.boundary }, []);
   assert(Array.isArray(processes) && processes.length <= HARD_LIMIT, 'World process safety ceiling exceeded');
