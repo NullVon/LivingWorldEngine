@@ -139,10 +139,10 @@ function recordAttempt(state, input) {
   return { attempt, record };
 }
 
-export function rejectAttempt(state, input, reason, recordEvent, causes = [], conflict = null) {
+export function rejectAttempt(state, input, reason, recordEvent, causes = [], conflict = null, type = 'action.failed') {
   const { attempt, record } = recordAttempt(state, input);
   return recordEvent({
-    type: 'action.failed', actor: attempt.actor, attempt: record.id, causes,
+    type, actor: attempt.actor, attempt: record.id, causes,
     data: { action: attempt.type, reason, ...(conflict ? { conflict } : {}) }, effects: [],
   });
 }

@@ -10,6 +10,17 @@ export function validateState(state) {
   assert(Number.isSafeInteger(state.execution) && state.execution >= 0, 'Invalid execution sequence');
   assert(Number.isInteger(state.random) && state.random >= 0 && state.random <= 0xffffffff, 'Invalid random state');
   assert(Array.isArray(state.queue) && new Set(state.queue).size === state.queue.length, 'Invalid queue');
+  assert(Array.isArray(state.deferredAttempts), 'Invalid deferred Actions');
+  for (const batch of state.deferredAttempts) {
+    assert(Number.isSafeInteger(batch.due) && batch.due > state.boundary, 'Invalid deferred Action boundary');
+    assert(Array.isArray(batch.attempts) && batch.attempts.length > 0, 'Invalid deferred Action batch');
+    for (const attempt of batch.attempts) {
+      assert(typeof attempt.type === 'string' && Array.isArray(attempt.targets) && Array.isArray(attempt.evidence), 'Malformed deferred Action');
+      assert(entity(state.world, attempt.actor).actor, 'Deferred Action Actor missing');
+      for (const ref of attempt.targets) entity(state.world, ref);
+      for (const ref of attempt.evidence) assert(entity(state.world, ref).claim?.actor === attempt.actor, 'Invalid deferred Action evidence');
+    }
+  }
   assert(Array.isArray(state.suspended), 'Invalid suspended Scenes');
   for (const ref of state.queue) assert(entity(state.world, ref).consequence?.status === 'pending', 'Queue must reference pending Consequences');
   for (const item of Object.values(state.world.entities)) {
@@ -51,7 +62,7 @@ export function save(state) {
 export function load(serialized) {
   const envelope = JSON.parse(serialized);
   assert(envelope.version === VERSION, 'Unsupported save version; explicit migration required');
-  const state = copy(envelope.state); validateState(state);
+  const state = copy(envelope.state); state.deferredAttempts ??= []; validateState(state);
   assert(state.checkpoint, 'Save does not describe a stable checkpoint');
   return state;
 }

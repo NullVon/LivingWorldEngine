@@ -1,8 +1,10 @@
-# Six-pillar and multi-Actor stress milestone report
+# Six-pillar, multi-Actor, and lifecycle-integrity milestone report
 
 The clean implementation executes the semantic-free acceptance lifecycle in LWE-Core. OBJECT_1 moves from LOCATION_1 to LOCATION_2 through the fixture-defined `RelocateObject` Shell Action after the player waits and ACTOR_1 communicates an alternate request to ACTOR_2. The Situation persists across Scenes, resolves through a Consequence, and the movement's WHY trace reaches both communications and the player's Wait. The tests also execute two tiny Shell resolvers with different semantic data without modifying Core.
 
 The multi-Actor stress pass adds one small generic hook for Shell-declared competing attempt groups. Core orders numeric values under Shell-selected direction and tie policy, settles each attempt, and revalidates the next against the resulting objective state. The stress fixtures also cover stale and incomplete Actor Views, three terminal paths, Player/autonomous parity, and seeded weighted desires without adding a gameplay pillar.
+
+The lifecycle-integrity pass serializes future Action batches at safe checkpoints and preserves deterministic conflict resolution across restoration. Nested Scene Consequences now remain causal inputs when a parent resumes, while ending a parent produces explicit cancellation Events. Partial conflict resolution remains inside one atomic, unsaveable Scene transaction.
 
 ## A. Files created or changed
 
@@ -29,6 +31,7 @@ Created:
 - `tests/acceptance.test.js`
 - `tests/invariants.test.js`
 - `tests/conflicts.test.js`
+- `tests/lifecycle-conflicts.test.js`
 
 The authoritative Word architecture files were read and not modified. No files outside LWE-Core were changed.
 
@@ -47,7 +50,7 @@ The public API and infrastructure files support these six responsibilities; none
 
 ## C. Complete for this pass versus minimal or deferred
 
-Complete within this milestone: the specified lifecycle and WHY graph; instance isolation; read-only API snapshots; atomic Scene resolution; expected eligibility denial versus visible hook failure; structural World validation; generic state Consequences; explicit information transfer/perception; delayed revalidation and invalidation; causal provenance; serializable budget carryover at completed Scene boundaries; JSON save/restore; manual nested interruption; tests.
+Complete within this milestone: the specified lifecycle and WHY graph; instance isolation; read-only API snapshots; atomic Scene resolution; expected eligibility denial versus visible hook failure; structural World validation; generic state Consequences; explicit information transfer/perception; delayed revalidation and invalidation; causal provenance; serializable Consequence and future-Action carryover at completed Scene boundaries; deterministic JSON save/restore; nested interruption with explicit resume, transform, and cancellation behavior; tests.
 
 Minimal working implementations: universal Actions with fixed Core semantics, including transitive Give and effect-neutral Event-producing Interact; dynamic candidate eligibility; safe autonomous Decision Context projection; desire-weighted arbitration and numeric contest ordering; Situation terminal predicates and expiry; Shell-controlled repeatable importance opportunities; certain/uncertain claims, direct supersession and explicit forgetting; JSON predicates.
 
@@ -67,7 +70,7 @@ Deferred. `packages/dice/README.md` records the intended optional boundary. Core
 
 ## G. Tests
 
-Command: `node --test` on the bundled Node runtime. Multi-Actor stress run: **40 passed, 0 failed, 0 skipped**.
+Command: `node --test` on the bundled Node runtime. Lifecycle-integrity stress run: **47 passed, 0 failed, 0 skipped**.
 
 Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move, nested Give, and effect-neutral Interact with downstream Shell Consequences; competing Actions with immediate revalidation; deterministic, seeded-random, no-winner, and compatible-simultaneous ties; stale and incomplete Views; three Situation paths; Player/autonomous parity; weighted selection; nested Scenes; save version/reference validation; deterministic restoration with already-due queued work; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; visible eligibility hook failures; and checkpoint safety when a final budgeted effect satisfies a Situation.
 
@@ -88,6 +91,6 @@ Persistent world records use Entities, while Relations/Globals and scene-control
 
 ## J. Recommended next step
 
-Exercise save/restore and nested Scene interruption around declared conflicts, without adding semantic initiative or combat policy. A later real-Shell adapter can then validate the generic hook against application needs before Dice is considered.
+Build the first small real Shell adapter to validate these generic contracts against application needs. Keep Dice optional and deferred until a Shell demonstrates that it needs that package boundary.
 
 The requested milestone is a local commit only. No push or external integration is part of this work.

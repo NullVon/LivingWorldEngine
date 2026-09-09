@@ -50,12 +50,15 @@ Snapshots, Entity reads, Views, history, and traces are detached and deeply froz
 | `view(actor)` | Active claims available to that Actor |
 | `available(actor)` | Dynamic Shell candidates filtered through Action eligibility |
 | `startScene(context)`, `submit(attempt)` | Open a window and queue attempts |
+| `deferAttempts(attempts, due)` | At a stable checkpoint, serialize future attempts for a later boundary |
 | `resolveScene({budget, offscreenBudget})` | Advance one window; default budgets are 1,000 causal operations and zero off-screen Actions |
 | `interrupt(context)`, `resume(mode, context)` | Nested Scene interruption; mode is `resume`, `transform`, or `end` |
 | `history()`, `trace(recordId)`, `why(entityId, field)` | Objective causal records and explanations |
 | `save()` | Versioned JSON at a completed Scene boundary |
 
 Saved control state includes pending and already-due deferred Consequences, causal counters, the boundary number, and deterministic random state. Supply the Shell again on restore; functions are not serialized. Unknown save versions are rejected explicitly. Saving is allowed after a Scene transaction completes even when its budget leaves pending work; that queue resumes deterministically after restoration. Saving remains blocked while a Scene is active or suspended, so partially applied Scene transactions are never exposed. Advance large skips by repeating Scene windows. There is no background timer.
+
+Future Action batches created by `deferAttempts` are also saved with their due boundary. They resume through the ordinary Action and conflict pipeline.
 
 ## Six modules
 
@@ -83,6 +86,10 @@ An Action can include a `situation` reference and current claim IDs in `evidence
 For permitted Scene data, pass `startScene({ decision: { shared: {...}, actors: { ACTOR_ID: {...} } } })`; other Scene context is not projected into autonomous decisions. `shell.desires(context)` returns opaque `{id, weight}` entries. A choice may reference one with `{desire: id, attempt}` and Core uses that weight during generic selection. `shell.available(context)` supplies candidate attempts, which Core filters through the normal eligibility path before exposing them as `availableActions`.
 
 For mutually incompatible submitted attempts, `shell.conflicts({attempts, world, boundary})` may return a group such as `{id, entries: [{index, value}], direction, tie}`. Values and their meaning belong to the Shell. Direction is `high-first` or `low-first`; tie policy is `actor-order`, seeded `random`, `no-winner`, or `simultaneous`. Random entries may include a nonnegative `weight`. Core orders the group, settles each attempt's immediate causal work, and revalidates the next attempt against the resulting World State. The conflict decision and losing outcome remain in objective history. See `tests/conflicts.test.js` for the complete semantic-free fixtures.
+
+`shell.conflicts` is trusted objective adjudication and may inspect its read-only `world` argument. That information is never projected into Actor View or autonomous Decision Context. Use `deferAttempts(attempts, due)` only at a completed checkpoint; the due batch joins the next Scene's submitted attempts when its boundary arrives, before newly submitted attempts, and is removed transactionally after successful resolution. Save/restore therefore preserves the batch and seeded tie state without rerolling or duplicating Actions.
+
+An interrupted parent Scene remains suspended and unsaveable while a nested Scene runs. After the nested Scene completes, `resume` restores the original context, `transform` replaces its context, and both preserve pending attempts for revalidation. Consequences applied during the interruption become causal inputs to the resumed outcomes. `end` discards no work silently: each pending parent attempt receives an `action.cancelled` Event caused by the nested Consequences. A checkpoint exists only after all parent frames have ended or resolved. There is deliberately no checkpoint between competitors inside one atomic Scene resolution.
 
 An important active Situation declares a legitimate `opportunity` claim and requires `shell.surfaceOpportunity({boundary, situation, previousCount, world})`. Returning `true` surfaces that claim during the current boundary. This world-policy hook may inspect its read-only world input; autonomous `choices` still cannot. Core records every occurrence and permits later resurfacing while the Situation remains active; the Shell owns cadence and repetition.
 

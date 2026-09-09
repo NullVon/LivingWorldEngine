@@ -36,6 +36,8 @@ The semantic-free six-pillar lifecycle, its contract-conformance corrections, an
 - `Interact` records a meaningful resolved Event and has no default World State effect. Shells may attach consequences through `shell.consequences`.
 - Autonomous decisions receive a read-only projection of legitimate local information, dynamically eligible Actions, and opaque desire weights. They do not receive Objective World State.
 - A Shell may declare groups of competing submitted attempts and provide numeric ordering plus a deterministic tie policy. Core settles and revalidates each ordered attempt without assigning semantic meaning or Player priority.
+- `deferAttempts(attempts, due)` stores future Action attempts in serializable Core control state; restored runtimes resolve them once with the re-supplied Shell policy and saved RNG state.
+- Nested Scenes preserve parent attempts. Resume and transform revalidate them against nested changes; end records explicit cancellation Events.
 - Important Situations use Shell-controlled opportunity cadence and can resurface without a hard-coded lifetime count.
 - Completed Scene boundaries are serializable even when a causal budget leaves pending work. The queue and deterministic control state restore exactly; active or suspended Scenes remain unsavable.
 - Expected Action denials become unavailable or failed attempts. Unexpected eligibility errors remain visible and roll back Scene resolution.
@@ -50,7 +52,7 @@ Node.js 22 or later is required. No dependency installation is needed.
 node --test
 ```
 
-The test suite covers the six-pillar acceptance chain, WHY provenance, two small Shells, persistence and restoration, runtime isolation, delayed Consequences, safe autonomous context, repeated opportunities, multi-Actor conflicts, stale and incomplete beliefs, multiple Situation paths, universal Actions, containment, validation, rollback, and causal safety limits.
+The test suite covers the six-pillar acceptance chain, WHY provenance, two small Shells, persistence and restoration, runtime isolation, delayed Consequences and Action attempts, nested conflict interruption, safe autonomous context, repeated opportunities, multi-Actor conflicts, stale and incomplete beliefs, multiple Situation paths, universal Actions, containment, validation, rollback, and causal safety limits.
 
 ## Repository layout
 

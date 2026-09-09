@@ -17,16 +17,38 @@ export function submit(state, input) {
   state.scene.attempts.push(attempt);
 }
 
+export function deferAttempts(state, attempts, due) {
+  assert(state.checkpoint && !state.scene && !state.suspended.length, 'Deferred Actions require a stable checkpoint');
+  assert(Number.isSafeInteger(due) && due > state.boundary, 'Deferred Action boundary must be in the future');
+  assert(Array.isArray(attempts) && attempts.length > 0 && attempts.length <= HARD_LIMIT, 'Invalid deferred Actions');
+  const prepared = attempts.map(input => {
+    const attempt = prepare(input); decisionBase(state, attempt.actor); return attempt;
+  });
+  state.deferredAttempts.push({ due, attempts: prepared });
+}
+
 export function interrupt(state, context) {
   assert(state.scene?.phase === 'active', 'Only an active Scene can be interrupted');
+  state.scene.interruptedAt = state.boundary;
   state.suspended.push(state.scene); state.scene = null; start(state, context);
 }
 
-export function resume(state, mode = 'resume', context = {}) {
+export function resume(state, shell, mode = 'resume', context = {}) {
   assert(!state.scene && state.suspended.length, 'Finish the interruption before resuming');
   assert(['resume', 'transform', 'end'].includes(mode), 'Unknown resume mode');
   const frame = state.suspended.pop();
-  if (mode !== 'end') { state.scene = frame; if (mode === 'transform') state.scene.context = copy(context); }
+  const nestedCauses = Object.values(state.world.entities)
+    .filter(record => record.consequence?.status === 'applied' && record.consequence.executedAt > frame.interruptedAt)
+    .map(record => record.id);
+  delete frame.interruptedAt;
+  if (mode === 'end') {
+    const emit = spec => recordEvent(state, shell, spec);
+    for (const attempt of frame.attempts) rejectAttempt(state, attempt, 'Parent Scene ended after interruption', emit, nestedCauses, null, 'action.cancelled');
+  } else {
+    frame.resumeCauses = [...new Set([...(frame.resumeCauses ?? []), ...nestedCauses])];
+    state.scene = frame;
+    if (mode === 'transform') state.scene.context = copy(context);
+  }
   state.checkpoint = !state.scene && !state.suspended.length;
 }
 
@@ -104,6 +126,9 @@ export function resolve(state, shell, options = {}) {
   assert(Number.isSafeInteger(allowance) && allowance > 0 && allowance <= HARD_LIMIT, 'Invalid causal budget');
   assert(Number.isSafeInteger(offscreenBudget) && offscreenBudget >= 0 && offscreenBudget <= HARD_LIMIT, 'Invalid off-screen budget');
   state.scene.phase = 'resolving'; state.boundary++;
+  const dueAttempts = state.deferredAttempts.filter(batch => batch.due <= state.boundary);
+  state.deferredAttempts = state.deferredAttempts.filter(batch => batch.due > state.boundary);
+  const attempts = [...dueAttempts.flatMap(batch => batch.attempts), ...state.scene.attempts];
   const budget = { left: allowance, used: 0 };
   const emit = spec => recordEvent(state, shell, spec);
   const settle = (includeDelayed = true) => {
@@ -121,9 +146,9 @@ export function resolve(state, shell, options = {}) {
   settle(false);
   // Each ordered attempt settles before the next so later attempts revalidate.
   const conflictCauses = new Map();
-  for (const item of orderAttempts(state, shell, state.scene.attempts)) {
+  for (const item of orderAttempts(state, shell, attempts)) {
     assert(!hasImmediate(), 'Causal budget exhausted before competing attempts could revalidate');
-    const causes = item.conflict ? (conflictCauses.get(item.conflict.id) ?? []) : [];
+    const causes = [...new Set([...(state.scene.resumeCauses ?? []), ...(item.conflict ? (conflictCauses.get(item.conflict.id) ?? []) : [])])];
     const eventId = item.reject
       ? rejectAttempt(state, item.attempt, 'Contest tie policy produced no winner', emit, causes, item.conflict)
       : resolveAttempt(state, shell, item.attempt, emit, causes, item.conflict);

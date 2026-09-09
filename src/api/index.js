@@ -12,7 +12,7 @@ export function createRuntime({ entities = [], globals = {}, relations = [], she
   assert(Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff, 'Seed must be an unsigned 32-bit integer');
   let state = saved ? persistence.load(saved) : {
     world: bootstrap(entities, globals, relations), sequence: 0, execution: 0, boundary: 0,
-    queue: [], scene: null, suspended: [], random: seed, checkpoint: true,
+    queue: [], deferredAttempts: [], scene: null, suspended: [], random: seed, checkpoint: true,
   };
   let busy = false;
   function transaction(fn) {
@@ -34,9 +34,10 @@ export function createRuntime({ entities = [], globals = {}, relations = [], she
     },
     startScene: context => transaction(s => scenes.start(s, context)),
     submit: attempt => transaction(s => scenes.submit(s, attempt)),
+    deferAttempts: (attempts, due) => transaction(s => scenes.deferAttempts(s, attempts, due)),
     resolveScene: options => transaction(s => scenes.resolve(s, shell, options)),
     interrupt: context => transaction(s => scenes.interrupt(s, context)),
-    resume: (mode, context) => transaction(s => scenes.resume(s, mode, context)),
+    resume: (mode, context) => transaction(s => scenes.resume(s, shell, mode, context)),
     save: () => persistence.save(state),
   });
 }
