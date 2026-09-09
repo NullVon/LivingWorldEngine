@@ -1,7 +1,7 @@
-import { assert, call, copy, readonly } from '../infrastructure/records.js';
+import { assert, copy, readonly } from '../infrastructure/records.js';
 import { bootstrap, entity } from '../core/world-state/index.js';
 import { view } from '../core/information/index.js';
-import { decisionContext, eligibility, prepare } from '../core/actors-actions/index.js';
+import { decisionContext } from '../core/actors-actions/index.js';
 import { why, trace } from '../core/events-consequences/index.js';
 import * as scenes from '../core/scene-progression/index.js';
 import * as persistence from '../infrastructure/persistence/index.js';
@@ -30,11 +30,7 @@ export function createRuntime({ entities = [], globals = {}, relations = [], she
     trace: ref => readonly(trace(state.world, ref)),
     available: actor => {
       assert(!busy, 'Runtime re-entry is forbidden');
-      const choices = call(shell.available, decisionContext(state, actor), [{ actor, type: 'Wait' }]);
-      return readonly(choices.filter(input => {
-        if (input.actor !== actor) return false;
-        try { eligibility(state, shell, prepare(input)); return true; } catch { return false; }
-      }));
+      return readonly(decisionContext(state, shell, actor).availableActions);
     },
     startScene: context => transaction(s => scenes.start(s, context)),
     submit: attempt => transaction(s => scenes.submit(s, attempt)),

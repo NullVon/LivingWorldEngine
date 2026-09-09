@@ -1,6 +1,6 @@
 # First six-pillar milestone report
 
-The clean implementation executes the semantic-free acceptance lifecycle in LWE-Core. OBJECT_1 moves from LOCATION_1 to LOCATION_2 after the player waits and ACTOR_1 communicates an alternate request to ACTOR_2. The Situation persists across Scenes, resolves through a Consequence, and the movement's WHY trace reaches both communications and the player's Wait. The tests also execute two tiny Shell resolvers with different semantic data without modifying Core.
+The clean implementation executes the semantic-free acceptance lifecycle in LWE-Core. OBJECT_1 moves from LOCATION_1 to LOCATION_2 through the fixture-defined `RelocateObject` Shell Action after the player waits and ACTOR_1 communicates an alternate request to ACTOR_2. The Situation persists across Scenes, resolves through a Consequence, and the movement's WHY trace reaches both communications and the player's Wait. The tests also execute two tiny Shell resolvers with different semantic data without modifying Core.
 
 ## A. Files created or changed
 
@@ -46,7 +46,7 @@ The public API and infrastructure files support these six responsibilities; none
 
 Complete within this milestone: the specified lifecycle and WHY graph; instance isolation; read-only API snapshots; atomic Scene resolution; failed eligibility Events; structural World validation; generic state Consequences; explicit information transfer/perception; delayed revalidation and invalidation; causal provenance; budget carryover and safe checkpoints; JSON save/restore; manual nested interruption; tests.
 
-Minimal working implementations: universal Actions, dynamic candidate eligibility, weighted arbitration and numeric contest ordering; Situation terminal predicates and expiry; one-time Shell-authored importance opportunities; certain/uncertain claims, direct supersession and explicit forgetting; JSON predicates. Interact intentionally emits a no-effect attempt unless Shell supplies its effect.
+Minimal working implementations: universal Actions with fixed Core semantics, dynamic candidate eligibility, safe autonomous Decision Context projection, desire-weighted arbitration and numeric contest ordering; Situation terminal predicates and expiry; Shell-controlled repeatable importance opportunities; certain/uncertain claims, direct supersession and explicit forgetting; JSON predicates. Interact intentionally emits a no-effect attempt.
 
 Deferred, not falsely presented as complete: migration from nonexistent earlier Core schemas, history compaction/purging, rich retention scheduling, automatic interruption detection, sophisticated Situation evolution policy, full conflict orchestration, semantic contradiction handling and all genre rules. Terminal paths are structurally required; Core cannot prove that an arbitrary Shell predicate will eventually become true. Use expiry when a finite bound is required.
 
@@ -64,9 +64,9 @@ Deferred. `packages/dice/README.md` records the intended optional boundary. Core
 
 ## G. Tests
 
-Command: `node --test` on the bundled Node runtime. Final implementation run: **27 passed, 0 failed, 0 skipped**.
+Command: `node --test` on the bundled Node runtime. Contract-conformance run: **30 passed, 0 failed, 0 skipped**.
 
-Coverage includes the acceptance lifecycle; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; restricted autonomous decision context; explicit off-screen authorization; hidden Situation expiry and legitimate opportunity content; causal budgets and depth safety; multiple causes; universal Actions and failed Give; weighted selection and contest ties; nested Scenes; save version/reference validation; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; and checkpoint safety when a final budgeted effect satisfies a Situation.
+Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move and failed Give; weighted selection and contest ties; nested Scenes; save version/reference validation; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; and checkpoint safety when a final budgeted effect satisfies a Situation.
 
 ## H. Architecture deviations
 

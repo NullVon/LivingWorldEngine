@@ -53,11 +53,6 @@ export function apply(state, shell, record) {
       assert(['active', 'changed', 'escalated', 'de-escalated', 'resolved', 'failed', 'expired', 'transformed', 'cancelled', 'invalidated'].includes(op.lifecycle), 'Invalid Situation lifecycle');
       c.changes = [{ scope: 'entity', entity: target.id, field: 'lifecycle', before: target.lifecycle, after: op.lifecycle }];
       target.lifecycle = op.lifecycle;
-    } else if (op.type === 'opportunity') {
-      const target = entity(state.world, op.entity);
-      assert(target.situation?.opportunity, 'Missing opportunity');
-      c.changes = [{ scope: 'entity', entity: target.id, field: 'situation.offered', before: target.situation.offered ?? false, after: true }];
-      target.situation.offered = true;
     } else if (op.type === 'emit') recordEvent(state, shell, op.event, record.id);
     else c.changes = change(state.world, op);
     c.status = 'applied'; c.executedAt = state.boundary; c.order = ++state.execution;

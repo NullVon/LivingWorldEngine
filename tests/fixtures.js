@@ -16,6 +16,11 @@ export function window(runtime, attempts = [], options = {}) {
 
 export const claim = (subject = 'SITUATION_1', key = 'requested', value = 'LOCATION_2') => ({ subject, key, value });
 
+export const relocateObject = {
+  eligible: ({ attempt }) => attempt.targets.length === 1 && typeof attempt.params.location === 'string',
+  resolve: ({ attempt }) => ({ effects: [{ type: 'move', entity: attempt.targets[0], location: attempt.params.location }] }),
+};
+
 export function acceptanceShell() {
   return {
     worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'observed', effects: [{ type: 'learn', actor: 'ACTOR_1', claim: claim() }] }] : [],
@@ -27,23 +32,24 @@ export function acceptanceShell() {
       return [];
     },
     actions: {
-      Move: {
-        eligible: ({ attempt }) => attempt.targets.length === 1 && typeof attempt.params.location === 'string',
+      RelocateObject: {
+        ...relocateObject,
         resolve: ({ attempt }) => ({ effects: [
           { type: 'move', entity: attempt.targets[0], location: attempt.params.location },
           ...['ACTOR_1', 'ACTOR_2'].map(actor => ({ type: 'learn', actor, claim: claim(attempt.targets[0], 'primaryLocation', attempt.params.location) })),
         ] }),
       },
     },
-    offscreenActors: () => ['ACTOR_1', 'ACTOR_2'],
-    choices: ({ actor, view }) => {
-      const known = view.find(e => e.claim.subject === 'SITUATION_1');
-      if (!known) return [];
+    available: ({ actor, view }) => {
+      const known = view.find(record => record.claim.subject === 'SITUATION_1');
+      if (!known) return [{ actor: actor.id, type: 'Wait' }];
       if (actor.id === 'ACTOR_1') {
-        const decline = view.find(e => e.claim.subject === 'ACTOR_PLAYER' && e.claim.value === 'Wait');
-        return decline ? [{ weight: 1, attempt: { actor: actor.id, type: 'Communicate', situation: 'SITUATION_1', targets: ['ACTOR_2'], evidence: [known.id, decline.id], params: { claim: claim() } } }] : [];
+        const decline = view.find(record => record.claim.subject === 'ACTOR_PLAYER' && record.claim.value === 'Wait');
+        return decline ? [{ actor: actor.id, type: 'Communicate', situation: 'SITUATION_1', targets: ['ACTOR_2'], evidence: [known.id, decline.id], params: { claim: claim() } }] : [{ actor: actor.id, type: 'Wait' }];
       }
-      return [{ weight: 1, attempt: { actor: actor.id, type: 'Move', situation: 'SITUATION_1', targets: ['OBJECT_1'], evidence: [known.id], params: { location: known.claim.value } } }];
+      return [{ actor: actor.id, type: 'RelocateObject', situation: 'SITUATION_1', targets: ['OBJECT_1'], evidence: [known.id], params: { location: known.claim.value } }];
     },
+    offscreenActors: () => ['ACTOR_1', 'ACTOR_2'],
+    choices: ({ availableActions }) => availableActions.filter(attempt => attempt.type !== 'Wait').map(attempt => ({ weight: 1, attempt })),
   };
 }

@@ -28,11 +28,35 @@ test('six-pillar semantic-free lifecycle preserves the full WHY chain after Play
   const why = r.why('OBJECT_1', 'primaryLocation');
   assert.equal(why.origin, 'consequence');
   const attempts = why.nodes.filter(e => e.attempt).map(e => [e.attempt.actor, e.attempt.type]);
-  assert.deepEqual(attempts, [['ACTOR_2', 'Move'], ['ACTOR_1', 'Communicate'], ['ACTOR_PLAYER', 'Wait'], ['ACTOR_1', 'Communicate']]);
-  assert(r.why('SITUATION_1', 'lifecycle').nodes.some(e => e.attempt?.type === 'Move'));
+  assert.deepEqual(attempts, [['ACTOR_2', 'RelocateObject'], ['ACTOR_1', 'Communicate'], ['ACTOR_PLAYER', 'Wait'], ['ACTOR_1', 'Communicate']]);
+  assert(r.why('SITUATION_1', 'lifecycle').nodes.some(e => e.attempt?.type === 'RelocateObject'));
   const restored = createRuntime({ saved: r.save(), shell: acceptanceShell() });
   assert.deepEqual(restored.snapshot(), r.snapshot());
   assert.deepEqual(restored.why('OBJECT_1', 'primaryLocation'), why);
+});
+
+test('Shell can resurface an important Situation after repeated declines before another Actor resolves it', () => {
+  const shell = {
+    ...acceptanceShell(),
+    surfaceOpportunity: ({ boundary }) => boundary === 1 || boundary === 3,
+  };
+  const r = createRuntime({ entities: [...base(), situation({
+    important: true,
+    opportunity: { actor: 'ACTOR_PLAYER', claim: claim() },
+  })], shell });
+  window(r);
+  const first = r.view('ACTOR_PLAYER')[0];
+  window(r, [{ actor: 'ACTOR_PLAYER', type: 'Wait', situation: 'SITUATION_1', evidence: [first.id] }]);
+  assert.equal(r.entity('SITUATION_1').lifecycle, 'active');
+  window(r);
+  const second = r.view('ACTOR_PLAYER')[0];
+  assert.notEqual(second.id, first.id);
+  assert.equal(r.history().filter(record => record.event?.type === 'situation.opportunity').length, 2);
+  window(r, [{ actor: 'ACTOR_PLAYER', type: 'Wait', situation: 'SITUATION_1', evidence: [second.id] }]);
+  assert.equal(r.entity('SITUATION_1').lifecycle, 'active');
+  window(r, [], { offscreenBudget: 2 });
+  assert.equal(r.entity('SITUATION_1').lifecycle, 'resolved');
+  assert.equal(r.entity('OBJECT_1').primaryLocation, 'LOCATION_2');
 });
 
 test('two different tiny Shells run without changing Core semantics', () => {

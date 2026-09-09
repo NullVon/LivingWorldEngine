@@ -1,5 +1,5 @@
 import { assert, call, copy } from '../../infrastructure/records.js';
-import { decisionContext, prepare, resolveAttempt } from '../actors-actions/index.js';
+import { decisionBase, decisionContext, prepare, resolveAttempt, weightDecisions } from '../actors-actions/index.js';
 import { drain, hasDue, recordEvent, HARD_LIMIT } from '../events-consequences/index.js';
 import { updateSituations } from '../situations/index.js';
 import { selectWeighted } from '../../infrastructure/rules/index.js';
@@ -13,7 +13,7 @@ export function start(state, context = {}) {
 export function submit(state, input) {
   assert(state.scene?.phase === 'active', 'Actions require an active Scene');
   const attempt = prepare(input);
-  decisionContext(state, attempt.actor);
+  decisionBase(state, attempt.actor);
   state.scene.attempts.push(attempt);
 }
 
@@ -49,7 +49,7 @@ export function resolve(state, shell, options = {}) {
       drain(state, shell, budget, includeDelayed);
       // Discover resulting lifecycle work even if the final effect spent the budget.
       // It stays queued and prevents an incorrectly advertised stable checkpoint.
-      if (!updateSituations(state, emit)) break;
+      if (!updateSituations(state, shell, emit)) break;
     } while (budget.left > 0);
   };
   // Submitted attempts precede delayed world work; each attempt remains distinct.
@@ -65,13 +65,15 @@ export function resolve(state, shell, options = {}) {
     assert(Array.isArray(actors), 'Off-screen policy must return Actor IDs');
     for (const actor of actors.slice(0, offscreenBudget)) {
       if (hasDue(state) || budget.left === 0) break;
-      const context = decisionContext(state, actor);
+      const context = decisionContext(state, shell, actor);
       assert(context.actor.controller === 'Autonomous', 'Off-screen selection requires an Autonomous Actor');
-      const choices = call(shell.choices, context, []);
+      const choices = weightDecisions(call(shell.choices, context, []), context.desires);
       const selected = selectWeighted(choices, () => random(state));
       if (!selected) continue;
       assert(selected.attempt.actor === actor, 'Decision may only act as its Actor');
-      resolveAttempt(state, shell, selected.attempt, emit);
+      const selectedAttempt = prepare(selected.attempt);
+      assert(context.availableActions.some(attempt => JSON.stringify(attempt) === JSON.stringify(selectedAttempt)), 'Decision must select a dynamically available Action');
+      resolveAttempt(state, shell, selectedAttempt, emit);
       settle();
     }
   }

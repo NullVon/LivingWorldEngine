@@ -23,7 +23,7 @@ import { createRuntime } from './src/api/index.js';
 
 const runtime = createRuntime({
   entities: [
-    { id: 'ACTOR_PLAYER', actor: { controller: 'Human' } },
+    { id: 'ACTOR_PLAYER', actor: { controller: 'Human' }, primaryLocation: 'LOCATION_1' },
     { id: 'OBJECT_1', primaryLocation: 'LOCATION_1' },
     { id: 'LOCATION_1' },
     { id: 'LOCATION_2' },
@@ -32,13 +32,13 @@ const runtime = createRuntime({
 
 runtime.startScene({ participants: ['ACTOR_PLAYER'] });
 runtime.submit({
-  actor: 'ACTOR_PLAYER', type: 'Move', targets: ['OBJECT_1'],
+  actor: 'ACTOR_PLAYER', type: 'Move',
   params: { location: 'LOCATION_2' },
 });
-// OBJECT_1 remains at LOCATION_1 until the Scene resolves.
+// The Actor remains at LOCATION_1 until the Scene resolves.
 runtime.resolveScene();
-console.log(runtime.entity('OBJECT_1').primaryLocation); // LOCATION_2
-console.log(runtime.why('OBJECT_1', 'primaryLocation'));
+console.log(runtime.entity('ACTOR_PLAYER').primaryLocation); // LOCATION_2
+console.log(runtime.why('ACTOR_PLAYER', 'primaryLocation'));
 const restored = createRuntime({ saved: runtime.save() });
 ```
 
@@ -74,9 +74,13 @@ Rules, JSON record helpers, persistence, and the public API are supporting infra
 
 See [implementation contracts](implementation-contracts.md) for the decisions taken before implementation. [The acceptance fixture](../tests/fixtures.js) demonstrates communication, local decisions, explicit perception, Situation resolution and the later alternate response. [The acceptance test](../tests/acceptance.test.js) verifies the causal trace and two additional tiny Shell adapters.
 
-Universal Actions are `Move`, `Take`, `Give`, `Communicate`, `Interact`, and `Wait`. Move defaults to the Actor when no Entity target is specified. Give accepts `[possessedEntity, receiver]`. Communicate accepts recipient targets and `params.claim`. Wait and Interact have no default world effect; Shell can override any universal resolver or forbid it through eligibility.
+Universal Actions are `Move`, `Take`, `Give`, `Communicate`, `Interact`, and `Wait`. Move accepts no target and changes only the acting Actor's `primaryLocation`. Relocating another Entity requires a Shell-defined Action, as demonstrated by the acceptance fixture's neutral `RelocateObject`; it is not a universal Action. Give accepts `[possessedEntity, receiver]`. Communicate accepts recipient targets and `params.claim`. Wait and Interact have no default world effect. Shell eligibility may permit or forbid universal Actions in context, while their Core semantics remain fixed.
 
-An Action can include a `situation` reference and current claim IDs in `evidence`. Core requires Situation awareness and validates that evidence belongs to the acting Actor. Autonomous `choices` receives only Actor identity, local View and the boundary number. Objective state is supplied separately to adjudication and world-process hooks. Shell authors remain responsible for using View contents to formulate meaningful decisions, including belief-based targeting outside the explicit Situation guard.
+An Action can include a `situation` reference and current claim IDs in `evidence`. Core requires Situation awareness and validates that evidence belongs to the acting Actor. Autonomous `choices` receives a read-only Decision Context containing the Actor's own Entity data and location, structural possession information, Actor View, aware Situations represented through those claims, explicitly permitted Scene context, dynamic available Actions, and Shell-defined desire IDs/weights. It never receives Objective World State. Objective state is supplied separately to adjudication and world-process hooks. Shell authors remain responsible for using View contents to formulate meaningful decisions, including belief-based targeting outside the explicit Situation guard.
+
+For permitted Scene data, pass `startScene({ decision: { shared: {...}, actors: { ACTOR_ID: {...} } } })`; other Scene context is not projected into autonomous decisions. `shell.desires(context)` returns opaque `{id, weight}` entries. A choice may reference one with `{desire: id, attempt}` and Core uses that weight during generic selection. `shell.available(context)` supplies candidate attempts, which Core filters through the normal eligibility path before exposing them as `availableActions`.
+
+An important active Situation declares a legitimate `opportunity` claim and requires `shell.surfaceOpportunity({boundary, situation, previousCount, world})`. Returning `true` surfaces that claim during the current boundary. This world-policy hook may inspect its read-only world input; autonomous `choices` still cannot. Core records every occurrence and permits later resurfacing while the Situation remains active; the Shell owns cadence and repetition.
 
 Effects carry a generic operation plus optional `due` (absolute progression boundary) and `when` (JSON predicate). Operations include `create`, `retire`, `move`, `contain`, `data`, `relation`, `global`, `learn`, `forget`, `situation`, and `emit`. Event perception runs after immediate structural effects; presence alone grants nothing. Use explicit later Events when perception of a delayed change is needed. See tests for concrete specifications.
 

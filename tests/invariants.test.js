@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRuntime, selectWeighted, compareContest } from '../src/api/index.js';
-import { base, situation, window, claim } from './fixtures.js';
+import { base, situation, window, claim, relocateObject } from './fixtures.js';
 
 test('bootstrap rejects invalid IDs, references, duplicate IDs, cycles, and non-JSON data', () => {
   for (const entities of [
@@ -36,12 +36,12 @@ test('a bad effect rolls back the complete boundary and input can be retried', (
 });
 
 test('delayed Consequences revalidate once and do not postpone stale work forever', () => {
-  const r = createRuntime({ entities: base(), shell: { worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'scheduled', effects: [{
+  const r = createRuntime({ entities: base(), shell: { actions: { RelocateObject: relocateObject }, worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'scheduled', effects: [{
     type: 'move', entity: 'OBJECT_1', location: 'LOCATION_2', due: 3,
     when: { entity: 'OBJECT_1', field: 'primaryLocation', op: 'eq', value: 'LOCATION_1' },
   }] }] : [] } });
   window(r); assert.equal(r.snapshot().queue.length, 1);
-  window(r, [{ actor: 'ACTOR_PLAYER', type: 'Move', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }]);
+  window(r, [{ actor: 'ACTOR_PLAYER', type: 'RelocateObject', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }]);
   window(r);
   assert.equal(r.snapshot().queue.length, 0);
   assert.equal(r.history().filter(e => e.consequence?.status === 'invalidated').length, 1);
@@ -56,10 +56,10 @@ test('delayed structurally stale operations invalidate without partial changes',
 });
 
 test('delayed valid work survives save/load and WHY chooses execution order', () => {
-  const shell = { worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'scheduled', effects: [{ type: 'move', entity: 'OBJECT_1', location: 'LOCATION_2', due: 3 }] }] : [] };
+  const shell = { actions: { RelocateObject: relocateObject }, worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'scheduled', effects: [{ type: 'move', entity: 'OBJECT_1', location: 'LOCATION_2', due: 3 }] }] : [] };
   const r = createRuntime({ entities: base(), shell }); window(r);
   const loaded = createRuntime({ saved: r.save(), shell });
-  window(loaded, [{ actor: 'ACTOR_PLAYER', type: 'Move', targets: ['OBJECT_1'], params: { location: 'LOCATION_1' } }]);
+  window(loaded, [{ actor: 'ACTOR_PLAYER', type: 'RelocateObject', targets: ['OBJECT_1'], params: { location: 'LOCATION_1' } }]);
   window(loaded);
   assert.equal(loaded.entity('OBJECT_1').primaryLocation, 'LOCATION_2');
   assert(loaded.why('OBJECT_1', 'primaryLocation').nodes.some(e => e.event?.type === 'scheduled'));
@@ -90,32 +90,100 @@ test('later direct perception supersedes a belief without rewriting its source',
 });
 
 test('unknown Situations and another Actor\'s evidence cannot inform an attempt', () => {
-  const r = createRuntime({ entities: [...base(), situation()], shell: { worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'observed', effects: [{ type: 'learn', actor: 'ACTOR_1', claim: claim() }] }] : [] } });
+  const r = createRuntime({ entities: [...base(), situation()], shell: { actions: { RelocateObject: relocateObject }, worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'observed', effects: [{ type: 'learn', actor: 'ACTOR_1', claim: claim() }] }] : [] } });
   window(r); const evidence = r.view('ACTOR_1')[0].id;
-  window(r, [{ actor: 'ACTOR_2', type: 'Move', situation: 'SITUATION_1', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }, { actor: 'ACTOR_2', type: 'Wait', evidence: [evidence] }]);
+  window(r, [{ actor: 'ACTOR_2', type: 'RelocateObject', situation: 'SITUATION_1', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }, { actor: 'ACTOR_2', type: 'Wait', evidence: [evidence] }]);
   assert.equal(r.entity('OBJECT_1').primaryLocation, 'LOCATION_1');
   assert.equal(r.history().filter(e => e.event?.type === 'action.failed').length, 2);
 });
 
-test('decision hooks see only local knowledge and off-screen activity requires authorization', () => {
+test('off-screen activity requires authorization', () => {
   let calls = 0;
   const r = createRuntime({ entities: base(), shell: { offscreenActors: () => ['ACTOR_1'], choices: context => {
-    calls++; assert.deepEqual(Object.keys(context).sort(), ['actor', 'boundary', 'view']);
+    calls++; assert(!('world' in context));
     return [{ weight: 1, attempt: { actor: 'ACTOR_1', type: 'Wait' } }];
   } } });
   r.startScene(); assert.equal(calls, 0); r.resolveScene(); assert.equal(calls, 0);
   window(r, [], { offscreenBudget: 1 }); assert.equal(calls, 1);
 });
 
+test('autonomous Decision Context exposes permitted local state and known incomplete information only', () => {
+  let context;
+  const entities = base().map(item => {
+    if (item.id === 'ACTOR_1') return { ...item, data: { disposition: 'respond' } };
+    if (item.id === 'OBJECT_1') return { ...item, container: 'ACTOR_1', data: { hiddenValue: 99 } };
+    return item;
+  });
+  const hidden = { ...situation(), id: 'SITUATION_HIDDEN' };
+  const shell = {
+    worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'partial.discovery', effects: [{
+      type: 'learn', actor: 'ACTOR_1', claim: claim('SITUATION_1', 'fragment', 'partial'),
+    }] }] : [],
+    desires: ({ actor }) => actor.data.disposition === 'respond' ? [{ id: 'DESIRE_RESPOND', weight: 7 }] : [],
+    available: ({ actor }) => [{ actor: actor.id, type: 'Respond' }],
+    actions: { Respond: { resolve: ({ attempt }) => ({ effects: [{ type: 'data', entity: attempt.actor, key: 'responded', value: true }] }) } },
+    offscreenActors: () => ['ACTOR_1'],
+    choices: value => {
+      context = value;
+      assert(Object.isFrozen(value)); assert(Object.isFrozen(value.actor.data)); assert(Object.isFrozen(value.availableActions));
+      assert.throws(() => { value.actor.data.disposition = 'changed'; }, TypeError);
+      const partial = value.situations.some(item => item.id === 'SITUATION_1' && item.claims.some(record => record.claim.value === 'partial'));
+      return partial ? [{ desire: 'DESIRE_RESPOND', attempt: value.availableActions[0] }] : [];
+    },
+  };
+  const r = createRuntime({ entities: [...entities, situation(), hidden], shell });
+  window(r);
+  r.startScene({
+    decision: { shared: { permitted: true }, actors: { ACTOR_1: { prompt: 'local' }, ACTOR_2: { prompt: 'hidden' } } },
+    objectiveOnly: { secret: true },
+  });
+  r.resolveScene({ offscreenBudget: 1 });
+  assert.equal(context.actor.data.disposition, 'respond');
+  assert.equal(context.actor.primaryLocation, 'LOCATION_1');
+  assert.deepEqual(context.possessions.map(item => item.id), ['OBJECT_1']);
+  assert.deepEqual(context.situations.map(item => item.id), ['SITUATION_1']);
+  assert.deepEqual(context.sceneContext, { shared: { permitted: true }, actor: { prompt: 'local' } });
+  assert.deepEqual(context.desires, [{ id: 'DESIRE_RESPOND', weight: 7 }]);
+  assert.deepEqual(context.availableActions.map(action => action.type), ['Respond']);
+  assert(!('world' in context)); assert(!('entities' in context)); assert(!('globals' in context));
+  assert(!JSON.stringify(context).includes('SITUATION_HIDDEN'));
+  assert(!JSON.stringify(context).includes('hiddenValue'));
+  assert(!JSON.stringify(context).includes('objectiveOnly'));
+  assert.equal(r.entity('ACTOR_1').data.responded, true, 'Incomplete known information can inform a decision');
+});
+
+test('Shell desire weights drive generic autonomous selection probabilistically', () => {
+  function selected(weightA, weightB) {
+    const shell = {
+      desires: () => [{ id: 'DESIRE_A', weight: weightA }, { id: 'DESIRE_B', weight: weightB }],
+      available: ({ actor }) => [{ actor: actor.id, type: 'ChooseA' }, { actor: actor.id, type: 'ChooseB' }],
+      actions: {
+        ChooseA: { resolve: ({ attempt }) => ({ effects: [{ type: 'data', entity: attempt.actor, key: 'selected', value: 'A' }] }) },
+        ChooseB: { resolve: ({ attempt }) => ({ effects: [{ type: 'data', entity: attempt.actor, key: 'selected', value: 'B' }] }) },
+      },
+      offscreenActors: () => ['ACTOR_1'],
+      choices: ({ availableActions }) => availableActions.map((attempt, index) => ({ desire: index === 0 ? 'DESIRE_A' : 'DESIRE_B', attempt })),
+    };
+    const r = createRuntime({ entities: base(), shell, seed: 1000 });
+    window(r, [], { offscreenBudget: 1 });
+    return r.entity('ACTOR_1').data.selected;
+  }
+  assert.equal(selected(3, 1), 'A');
+  assert.equal(selected(1, 3), 'B');
+});
+
 test('important hidden Situations deliver only their Shell-authored opportunity', () => {
   assert.throws(() => createRuntime({ entities: [...base(), situation({ important: true })] }), /opportunity/);
-  const r = createRuntime({ entities: [...base(), situation({ important: true, opportunity: { actor: 'ACTOR_PLAYER', claim: claim('LOCATION_1', 'available', true) } })] });
+  const missingCadence = createRuntime({ entities: [...base(), situation({ important: true, opportunity: { actor: 'ACTOR_PLAYER', claim: claim() } })] });
+  assert.throws(() => window(missingCadence), /cadence policy/);
+  const r = createRuntime({ entities: [...base(), situation({ important: true, opportunity: { actor: 'ACTOR_PLAYER', claim: claim('LOCATION_1', 'available', true) } })], shell: { surfaceOpportunity: () => true } });
   window(r);
   assert.equal(r.view('ACTOR_PLAYER').length, 1);
   assert.equal(r.view('ACTOR_PLAYER')[0].claim.subject, 'LOCATION_1');
   assert(!r.view('ACTOR_PLAYER').some(e => e.claim.subject === 'SITUATION_1'));
-  assert.equal(r.entity('SITUATION_1').situation.offered, true);
+  assert.equal(r.history().filter(record => record.event?.type === 'situation.opportunity').length, 1);
   window(r); assert.equal(r.view('ACTOR_PLAYER').length, 1);
+  assert.equal(r.history().filter(record => record.event?.type === 'situation.opportunity').length, 2);
 });
 
 test('hidden Situations expire without awareness or Player participation', () => {
@@ -145,11 +213,19 @@ test('later Events require an intermediate Consequence and preserve multiple cau
   assert.equal(r.history().find(e => e.event?.type === 'derived').event.causes.length, 2);
 });
 
-test('universal Actions share execution and Shell can forbid them dynamically', () => {
+test('universal Move changes only the acting Actor location and Shell can forbid it dynamically', () => {
   const r = createRuntime({ entities: base(), shell: { actions: { Move: { eligible: () => false } } } });
   window(r, [{ actor: 'ACTOR_PLAYER', type: 'Take', targets: ['OBJECT_1'] }]); assert.equal(r.entity('OBJECT_1').container, 'ACTOR_PLAYER');
   window(r, [{ actor: 'ACTOR_PLAYER', type: 'Give', targets: ['OBJECT_1', 'ACTOR_1'] }]); assert.equal(r.entity('OBJECT_1').container, 'ACTOR_1');
   window(r, [{ actor: 'ACTOR_1', type: 'Move', params: { location: 'LOCATION_2' } }]); assert.equal(r.entity('ACTOR_1').primaryLocation, 'LOCATION_1');
+  const moving = createRuntime({ entities: base() });
+  window(moving, [{ actor: 'ACTOR_1', type: 'Move', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }]);
+  assert.equal(moving.entity('ACTOR_1').primaryLocation, 'LOCATION_1'); assert.equal(moving.entity('OBJECT_1').primaryLocation, 'LOCATION_1');
+  window(moving, [{ actor: 'ACTOR_1', type: 'Move', params: { location: 'LOCATION_2' } }]);
+  assert.equal(moving.entity('ACTOR_1').primaryLocation, 'LOCATION_2'); assert.equal(moving.entity('OBJECT_1').primaryLocation, 'LOCATION_1');
+  const fixed = createRuntime({ entities: base(), shell: { actions: { Move: { resolve: () => ({ effects: [{ type: 'move', entity: 'OBJECT_1', location: 'LOCATION_2' }] }) } } } });
+  window(fixed, [{ actor: 'ACTOR_1', type: 'Move', params: { location: 'LOCATION_2' } }]);
+  assert.equal(fixed.entity('ACTOR_1').primaryLocation, 'LOCATION_2'); assert.equal(fixed.entity('OBJECT_1').primaryLocation, 'LOCATION_1');
 });
 
 test('weighted selection is probabilistic, zero-safe, deterministic and explains ties in contests', () => {
@@ -191,8 +267,8 @@ test('creation, retirement, Relation and Global changes all retain provenance', 
 });
 
 test('budget exhaustion queues a newly satisfied Situation before offering a checkpoint', () => {
-  const r = createRuntime({ entities: [...base(), situation()] });
-  const first = window(r, [{ actor: 'ACTOR_PLAYER', type: 'Move', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }], { budget: 1 });
+  const r = createRuntime({ entities: [...base(), situation()], shell: { actions: { RelocateObject: relocateObject } } });
+  const first = window(r, [{ actor: 'ACTOR_PLAYER', type: 'RelocateObject', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }], { budget: 1 });
   assert.equal(first.phase, 'deferred'); assert.equal(first.checkpoint, false);
   assert.equal(r.entity('SITUATION_1').lifecycle, 'active');
   assert.equal(window(r, [], { budget: 1 }).checkpoint, true);
@@ -200,10 +276,10 @@ test('budget exhaustion queues a newly satisfied Situation before offering a che
 });
 
 test('perception reads post-effect truth and still requires an explicit grant', () => {
-  const r = createRuntime({ entities: base(), shell: { perceive: ({ event, world }) => event.event.data.action === 'Move' ? [{
+  const r = createRuntime({ entities: base(), shell: { actions: { RelocateObject: relocateObject }, perceive: ({ event, world }) => event.event.data.action === 'RelocateObject' ? [{
     actor: 'ACTOR_1', claim: claim('OBJECT_1', 'primaryLocation', world.entities.OBJECT_1.primaryLocation),
   }] : [] } });
-  window(r, [{ actor: 'ACTOR_PLAYER', type: 'Move', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }]);
+  window(r, [{ actor: 'ACTOR_PLAYER', type: 'RelocateObject', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }]);
   assert.equal(r.view('ACTOR_1')[0].claim.value, 'LOCATION_2');
   assert.equal(r.view('ACTOR_2').length, 0);
 });
