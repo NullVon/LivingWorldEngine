@@ -25,6 +25,8 @@ const contest = opposed([
 - `check({expression, target, comparison, ...options})` adds `target`, `margin`, and `passed`. Comparisons are `gte`, `gt`, `lte`, `lt`, and `eq`.
 - `opposed(sides, {rng})` rolls two or more identified sides independently and reports highest/lowest ID arrays, including ties. It assigns no fictional winner or outcome.
 - `createSeededRng(seedOrState)` creates an independent deterministic `lcg32` source with `next()`, a plain-data `save()` snapshot, and `restore(snapshot)` for transaction retry.
+- `compare(total, target, comparison)` applies a numeric comparison (`gte` by default) and returns a boolean.
+- `DiceError` is the exported error class; its `code` identifies a validation failure.
 
 Roll options include a caller-supplied safe-integer `modifier`, `candidates`, neutral `keep` policy (`first`, `highest`, or `lowest`), injected `rng`, and optional `criticalPolicy`. There are no universal natural-roll classifications. The caller policy receives a frozen result projection and may return a nonempty classification string or `null`.
 

@@ -18,6 +18,10 @@ node --test
 
 Import from `src/api/index.js`. Internal modules are implementation details; Shells must not call their mutators.
 
+The package entry point exports `createRuntime` and three generic rule helpers: `evaluate(rule, world)` evaluates a structural predicate, `selectWeighted(choices, random)` selects a weighted entry, and `compareContest(entries)` groups numeric values in descending order while retaining ties. These helpers do not mutate runtime state. Package metadata uses ESM and restricts package exports to this entry point; both Core and optional Dice remain marked `private` to prevent accidental npm publication.
+
+Software version 0.1.0, Word contract version v1, and JSON save envelope `{version: 1, state}` are separate version identifiers. Only save format 1 is supported; no migrations from nonexistent public formats are provided.
+
 ```js
 import { createRuntime } from './src/api/index.js';
 

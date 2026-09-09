@@ -1,5 +1,7 @@
 # Living World Engine Core
 
+**v0.1.0 — Six-Pillar Foundation** is the initial-development release, not a stable 1.0 API. The Core architecture is locked for this baseline. See the [changelog](CHANGELOG.md) for delivered scope.
+
 Living World Engine Core is a game-agnostic simulation engine for persistent worlds in which Actors, Situations, Information, Events, and Consequences continue beyond the player's immediate involvement.
 
 The governing principle is: **Core owns structure and generic resolution. Shell owns meaning.** The player and autonomous participants are Actors using the same Action pipeline. The Core does not define genre concepts, named worlds, presentation, AI, or UI.
@@ -11,7 +13,7 @@ The authoritative design records are:
 - [Core Contracts v1](docs/LWE_Core_Contracts_v1.docx)
 - [Six Core Pillars v1](docs/LWE_Core_Six_Pillars_v1.docx)
 
-The implementation-facing [contract decisions](docs/implementation-contracts.md) clarify this milestone without replacing those records. See the [getting-started guide](docs/getting-started.md), [milestone report](docs/milestone-report.md), and [semantic-free acceptance test](tests/acceptance.test.js) for executable examples and current scope.
+The Markdown documents are derived implementation guidance; the Word architecture documents remain authoritative. The [contract decisions](docs/implementation-contracts.md) clarify this milestone without replacing those records. See the [getting-started guide](docs/getting-started.md), [milestone report](docs/milestone-report.md), [acceptance fixture](tests/fixtures.js), and [semantic-free acceptance test](tests/acceptance.test.js) for executable examples and current scope. Document contract version v1 and JSON save format version 1 are separate from software SemVer 0.1.0.
 
 ## Six pillars
 
@@ -43,7 +45,7 @@ The semantic-free six-pillar lifecycle, its contract-conformance and stress mile
 - Completed Scene boundaries are serializable even when a causal budget leaves pending work. The queue and deterministic control state restore exactly; active or suspended Scenes remain unsavable.
 - Expected Action denials become unavailable or failed attempts. Unexpected eligibility errors remain visible and roll back Scene resolution.
 
-Core has no Dice, HearthVale, Kisaragi, AI, UI, or browser dependency. Dice is an optional sibling package and HearthVale is not integrated.
+Mandatory Core has no Dice, HearthVale, Kisaragi, AI, UI, or browser dependency. Optional [Dice](packages/dice/README.md) is supporting infrastructure, not a seventh pillar. HearthVale is a separate Shell repository whose playable vertical slice and combat validate the public Core API as an external consumer; its adapter, content, semantic rules, tests, and UI are not included here.
 
 ## Run the tests
 

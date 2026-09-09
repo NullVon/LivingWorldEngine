@@ -96,6 +96,6 @@ Persistent world records use Entities, while Relations/Globals and scene-control
 
 ## J. Recommended next step
 
-Build the first small HearthVale adapter against the public Core and optional Dice boundaries without importing HearthVale semantics into either package.
+The original recommendation to build a small HearthVale adapter has now been validated externally through HearthVale commit `1d94134`. Its separate 29-test suite passes against this Core baseline. No HearthVale implementation belongs in this repository. Core is now v0.1.0 — Six-Pillar Foundation; see the [release changelog](../CHANGELOG.md). Further Core functionality requires a separately approved milestone.
 
 The requested milestone is a local commit only. No push or external integration is part of this work.

@@ -1,0 +1,15 @@
+# Local dependencies and test output
+node_modules/
+/coverage/
+
+# Local credentials and playtest saves
+.env
+.env.local
+/saves/
+
+# Operating-system and editor temporary files
+.DS_Store
+Thumbs.db
+~$*.docx
+*.swp
+*.swo
