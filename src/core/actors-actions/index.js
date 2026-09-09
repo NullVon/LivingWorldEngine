@@ -14,15 +14,24 @@ const universal = {
   })),
 };
 
+export class EligibilityDenied extends Error {}
+
+function requireEligible(condition, message) {
+  if (!condition) throw new EligibilityDenied(message);
+}
+
+function possessedBy(world, target, actor) {
+  let container = entity(world, target).container;
+  while (container) {
+    if (container === actor) return true;
+    container = entity(world, container).container;
+  }
+  return false;
+}
+
 function possessions(world, actor) {
-  return Object.values(world.entities).filter(item => {
-    let container = item.container;
-    while (container) {
-      if (container === actor) return true;
-      container = entity(world, container).container;
-    }
-    return false;
-  }).map(item => ({ id: item.id, type: item.type, lifecycle: item.lifecycle, container: item.container }));
+  return Object.values(world.entities).filter(item => possessedBy(world, item.id, actor))
+    .map(item => ({ id: item.id, type: item.type, lifecycle: item.lifecycle, container: item.container }));
 }
 
 export function decisionBase(state, actor) {
@@ -63,7 +72,11 @@ function availableList(state, shell, actor, context) {
   assert(Array.isArray(candidates), 'Available Actions must be an array');
   return candidates.filter(input => {
     if (input.actor !== actor) return false;
-    try { eligibility(state, shell, prepare(input)); return true; } catch { return false; }
+    try { eligibility(state, shell, prepare(input)); return true; }
+    catch (error) {
+      if (error instanceof EligibilityDenied) return false;
+      throw error;
+    }
   }).map(prepare);
 }
 
@@ -96,21 +109,23 @@ export function eligibility(state, shell, attempt) {
   assert(universal[attempt.type] || shell.actions?.[attempt.type]?.resolve, 'Unknown Action');
   attempt.targets.forEach(ref => entity(state.world, ref));
   if (attempt.type === 'Move') {
-    assert(attempt.targets.length === 0, 'Move changes only the acting Actor primary location');
+    requireEligible(attempt.targets.length === 0, 'Move changes only the acting Actor primary location');
     entity(state.world, attempt.params.location);
   }
   for (const ref of attempt.targets) {
-    if (entity(state.world, ref).situation) assert(aware(state.world, attempt.actor, ref), 'Actor is unaware of Situation');
+    if (entity(state.world, ref).situation) requireEligible(aware(state.world, attempt.actor, ref), 'Actor is unaware of Situation');
   }
-  if (attempt.type === 'Give') assert(entity(state.world, attempt.targets[0]).container === attempt.actor, 'Actor does not possess target');
+  if (attempt.type === 'Give') requireEligible(possessedBy(state.world, attempt.targets[0], attempt.actor), 'Actor does not possess target');
   const knowledge = view(state.world, attempt.actor);
-  for (const ref of attempt.evidence) assert(knowledge.some(e => e.id === ref), 'Evidence is absent from Actor View');
+  for (const ref of attempt.evidence) requireEligible(knowledge.some(e => e.id === ref), 'Evidence is absent from Actor View');
   if (attempt.situation) {
     assert(entity(state.world, attempt.situation).situation, 'Not a Situation');
-    assert(aware(state.world, attempt.actor, attempt.situation), 'Actor is unaware of Situation');
+    requireEligible(aware(state.world, attempt.actor, attempt.situation), 'Actor is unaware of Situation');
   }
   const context = { attempt, world: state.world, view: knowledge };
-  assert(call(shell.actions?.[attempt.type]?.eligible, context, true) === true, 'Shell denied Action');
+  const allowed = call(shell.actions?.[attempt.type]?.eligible, context, true);
+  assert(typeof allowed === 'boolean', 'Action eligibility must return a boolean');
+  requireEligible(allowed, 'Shell denied Action');
   return context;
 }
 
@@ -124,6 +139,7 @@ export function resolveAttempt(state, shell, input, recordEvent) {
   let context;
   try { context = eligibility(state, shell, attempt); }
   catch (error) {
+    if (!(error instanceof EligibilityDenied)) throw error;
     return recordEvent({ type: 'action.failed', actor: attempt.actor, attempt: record.id, data: { action: attempt.type, reason: error.message }, effects: [] });
   }
   const builtIn = universal[attempt.type];

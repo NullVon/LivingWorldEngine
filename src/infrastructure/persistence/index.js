@@ -1,6 +1,5 @@
 import { assert, copy, json } from '../records.js';
 import { entity, validateWorld } from '../../core/world-state/index.js';
-import { hasDue } from '../../core/events-consequences/index.js';
 
 export const VERSION = 1;
 
@@ -40,7 +39,7 @@ export function validateState(state) {
     }
   }
   assert(typeof state.checkpoint === 'boolean', 'Invalid checkpoint');
-  if (state.checkpoint) assert(!state.scene && !state.suspended.length && !hasDue(state), 'Unsafe checkpoint');
+  if (state.checkpoint) assert(!state.scene && !state.suspended.length, 'Unsafe checkpoint');
 }
 
 export function save(state) {

@@ -53,9 +53,9 @@ Snapshots, Entity reads, Views, history, and traces are detached and deeply froz
 | `resolveScene({budget, offscreenBudget})` | Advance one window; default budgets are 1,000 causal operations and zero off-screen Actions |
 | `interrupt(context)`, `resume(mode, context)` | Nested Scene interruption; mode is `resume`, `transform`, or `end` |
 | `history()`, `trace(recordId)`, `why(entityId, field)` | Objective causal records and explanations |
-| `save()` | Versioned JSON at a stable checkpoint |
+| `save()` | Versioned JSON at a completed Scene boundary |
 
-Saved control state includes pending delayed Consequences and deterministic random state. Supply the Shell again on restore; functions are not serialized. Unknown save versions are rejected explicitly. Queued due work carries across windows when its budget is exhausted, and saving remains blocked until it stabilizes. Advance large skips by repeating Scene windows. There is no background timer.
+Saved control state includes pending and already-due deferred Consequences, causal counters, the boundary number, and deterministic random state. Supply the Shell again on restore; functions are not serialized. Unknown save versions are rejected explicitly. Saving is allowed after a Scene transaction completes even when its budget leaves pending work; that queue resumes deterministically after restoration. Saving remains blocked while a Scene is active or suspended, so partially applied Scene transactions are never exposed. Advance large skips by repeating Scene windows. There is no background timer.
 
 ## Six modules
 
@@ -74,7 +74,9 @@ Rules, JSON record helpers, persistence, and the public API are supporting infra
 
 See [implementation contracts](implementation-contracts.md) for the decisions taken before implementation. [The acceptance fixture](../tests/fixtures.js) demonstrates communication, local decisions, explicit perception, Situation resolution and the later alternate response. [The acceptance test](../tests/acceptance.test.js) verifies the causal trace and two additional tiny Shell adapters.
 
-Universal Actions are `Move`, `Take`, `Give`, `Communicate`, `Interact`, and `Wait`. Move accepts no target and changes only the acting Actor's `primaryLocation`. Relocating another Entity requires a Shell-defined Action, as demonstrated by the acceptance fixture's neutral `RelocateObject`; it is not a universal Action. Give accepts `[possessedEntity, receiver]`. Communicate accepts recipient targets and `params.claim`. Wait and Interact have no default world effect. Shell eligibility may permit or forbid universal Actions in context, while their Core semantics remain fixed.
+Universal Actions are `Move`, `Take`, `Give`, `Communicate`, `Interact`, and `Wait`. Move accepts no target and changes only the acting Actor's `primaryLocation`. Relocating another Entity requires a Shell-defined Action, as demonstrated by the acceptance fixture's neutral `RelocateObject`; it is not a universal Action. Give accepts `[possessedEntity, receiver]` and permits any Entity transitively contained by the acting Actor. Communicate accepts recipient targets and `params.claim`. Wait has no default effect. Interact creates a meaningful resolved Action Event with no built-in World State effect; `shell.consequences({event, world})` can attach Shell meaning through normal Consequences. Shell eligibility may permit or forbid universal Actions in context, while their Core semantics remain fixed.
+
+Dynamic availability suppresses expected denials returned as `false`. Exceptions thrown by `eligible`, malformed return values, and invalid candidate structures remain visible errors. During Scene resolution they roll back the complete boundary.
 
 An Action can include a `situation` reference and current claim IDs in `evidence`. Core requires Situation awareness and validates that evidence belongs to the acting Actor. Autonomous `choices` receives a read-only Decision Context containing the Actor's own Entity data and location, structural possession information, Actor View, aware Situations represented through those claims, explicitly permitted Scene context, dynamic available Actions, and Shell-defined desire IDs/weights. It never receives Objective World State. Objective state is supplied separately to adjudication and world-process hooks. Shell authors remain responsible for using View contents to formulate meaningful decisions, including belief-based targeting outside the explicit Situation guard.
 

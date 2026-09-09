@@ -27,7 +27,7 @@ export function resume(state, mode = 'resume', context = {}) {
   assert(['resume', 'transform', 'end'].includes(mode), 'Unknown resume mode');
   const frame = state.suspended.pop();
   if (mode !== 'end') { state.scene = frame; if (mode === 'transform') state.scene.context = copy(context); }
-  state.checkpoint = !state.scene && !state.suspended.length && !hasDue(state);
+  state.checkpoint = !state.scene && !state.suspended.length;
 }
 
 function random(state) {
@@ -48,7 +48,7 @@ export function resolve(state, shell, options = {}) {
     do {
       drain(state, shell, budget, includeDelayed);
       // Discover resulting lifecycle work even if the final effect spent the budget.
-      // It stays queued and prevents an incorrectly advertised stable checkpoint.
+      // It remains queued in the atomic boundary snapshot for the next window.
       if (!updateSituations(state, shell, emit)) break;
     } while (budget.left > 0);
   };
@@ -79,6 +79,6 @@ export function resolve(state, shell, options = {}) {
   }
   const deferred = hasDue(state);
   state.scene = null;
-  state.checkpoint = !deferred && !state.suspended.length;
+  state.checkpoint = !state.suspended.length;
   return { boundary: state.boundary, phase: deferred ? 'deferred' : 'stabilized', checkpoint: state.checkpoint, processed: budget.used };
 }

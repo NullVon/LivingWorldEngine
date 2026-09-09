@@ -4,7 +4,7 @@ The clean implementation executes the semantic-free acceptance lifecycle in LWE-
 
 ## A. Files created or changed
 
-No existing authored files are included as modifications. Separate README content appeared during implementation; it was preserved and left outside the milestone commit. The usage guide is a new document.
+The root README is maintained as the repository entry point and links to the authoritative records, implementation contract, usage guide, report, and acceptance tests.
 
 Created:
 
@@ -44,9 +44,9 @@ The public API and infrastructure files support these six responsibilities; none
 
 ## C. Complete for this pass versus minimal or deferred
 
-Complete within this milestone: the specified lifecycle and WHY graph; instance isolation; read-only API snapshots; atomic Scene resolution; failed eligibility Events; structural World validation; generic state Consequences; explicit information transfer/perception; delayed revalidation and invalidation; causal provenance; budget carryover and safe checkpoints; JSON save/restore; manual nested interruption; tests.
+Complete within this milestone: the specified lifecycle and WHY graph; instance isolation; read-only API snapshots; atomic Scene resolution; expected eligibility denial versus visible hook failure; structural World validation; generic state Consequences; explicit information transfer/perception; delayed revalidation and invalidation; causal provenance; serializable budget carryover at completed Scene boundaries; JSON save/restore; manual nested interruption; tests.
 
-Minimal working implementations: universal Actions with fixed Core semantics, dynamic candidate eligibility, safe autonomous Decision Context projection, desire-weighted arbitration and numeric contest ordering; Situation terminal predicates and expiry; Shell-controlled repeatable importance opportunities; certain/uncertain claims, direct supersession and explicit forgetting; JSON predicates. Interact intentionally emits a no-effect attempt.
+Minimal working implementations: universal Actions with fixed Core semantics, including transitive Give and effect-neutral Event-producing Interact; dynamic candidate eligibility; safe autonomous Decision Context projection; desire-weighted arbitration and numeric contest ordering; Situation terminal predicates and expiry; Shell-controlled repeatable importance opportunities; certain/uncertain claims, direct supersession and explicit forgetting; JSON predicates.
 
 Deferred, not falsely presented as complete: migration from nonexistent earlier Core schemas, history compaction/purging, rich retention scheduling, automatic interruption detection, sophisticated Situation evolution policy, full conflict orchestration, semantic contradiction handling and all genre rules. Terminal paths are structurally required; Core cannot prove that an arbitrary Shell predicate will eventually become true. Use expiry when a finite bound is required.
 
@@ -64,9 +64,9 @@ Deferred. `packages/dice/README.md` records the intended optional boundary. Core
 
 ## G. Tests
 
-Command: `node --test` on the bundled Node runtime. Contract-conformance run: **30 passed, 0 failed, 0 skipped**.
+Command: `node --test` on the bundled Node runtime. Cleanup run: **33 passed, 0 failed, 0 skipped**.
 
-Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move and failed Give; weighted selection and contest ties; nested Scenes; save version/reference validation; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; and checkpoint safety when a final budgeted effect satisfies a Situation.
+Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move, nested Give, and effect-neutral Interact with downstream Shell Consequences; weighted selection and contest ties; nested Scenes; save version/reference validation; deterministic restoration with already-due queued work; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; visible eligibility hook failures; and checkpoint safety when a final budgeted effect satisfies a Situation.
 
 ## H. Architecture deviations
 
@@ -79,7 +79,7 @@ Persistent world records use Entities, while Relations/Globals and scene-control
 - The documents do not mandate a language or Entity component schema. This pass uses plain ESM JavaScript and structural components in one Entity registry.
 - The important-Situation awareness guarantee requires legitimate Shell information. This pass requires a concrete disclosure path at registration and delivers only that claim; Core cannot determine fictional legitimacy itself.
 - A declared terminal path does not establish eventual reachability. Predicate paths and optional finite expiry are supported without pretending to prove arbitrary Shell policy.
-- Shell causal budgets can leave work pending. This implementation permits another Scene window to continue it, but withholds the stable save checkpoint while due work remains.
+- Shell causal budgets can leave work pending. A completed Scene boundary remains a safe checkpoint because the exact queue and deterministic control state are serialized; active and suspended Scene transactions remain unsavable.
 - Autonomous callbacks receive no objective world data. Shell callbacks are trusted code, so Core cannot prevent a Shell closure from obtaining truth elsewhere; the API contract forbids using such an escape for decision-making. Explicit Situation targets and evidence are checked independently.
 - Scene boundaries are numeric control indices, not fictional elapsed time. Fictional calendars must be ordinary Shell-defined World data changed through Consequences.
 

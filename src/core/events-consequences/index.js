@@ -18,6 +18,9 @@ export function recordEvent(state, shell, spec, parent = null) {
     causes, data: copy(spec.data ?? {}), boundary: state.boundary, depth,
   });
   const effects = [...(spec.effects ?? [])];
+  const shellEffects = call(shell.consequences, { event, world: state.world }, []);
+  assert(Array.isArray(shellEffects), 'Shell consequences must return an array');
+  effects.push(...shellEffects);
   assert(effects.length <= HARD_LIMIT, 'Event effect safety ceiling exceeded');
   // Observe after this Event's structural effects, not against pre-effect truth.
   if (shell.perceive) effects.push({ type: 'perceive' });

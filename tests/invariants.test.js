@@ -194,10 +194,19 @@ test('hidden Situations expire without awareness or Player participation', () =>
   assert.equal(r.view('ACTOR_PLAYER').length, 0); assert.equal(r.why('SITUATION_1', 'lifecycle').origin, 'consequence');
 });
 
-test('causal budgets defer work and never expose an unsafe save checkpoint', () => {
-  const r = createRuntime({ entities: base(), shell: { worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'two', effects: [{ type: 'data', entity: 'OBJECT_1', key: 'x', value: 1 }, { type: 'data', entity: 'OBJECT_1', key: 'x', value: 2 }] }] : [] } });
-  assert.equal(window(r, [], { budget: 1 }).phase, 'deferred'); assert.throws(() => r.save(), /checkpoint/);
-  assert.equal(window(r, [], { budget: 1 }).checkpoint, true); assert.equal(r.entity('OBJECT_1').data.x, 2);
+test('stable boundaries save and restore deterministic pending causal work', () => {
+  const shell = { worldProcesses: ({ boundary }) => boundary === 1 ? [{ type: 'two', effects: [{ type: 'data', entity: 'OBJECT_1', key: 'x', value: 1 }, { type: 'data', entity: 'OBJECT_1', key: 'x', value: 2 }] }] : [] };
+  const r = createRuntime({ entities: base(), shell });
+  r.startScene(); assert.throws(() => r.save(), /checkpoint/, 'Active Scenes are not serializable checkpoints');
+  const first = r.resolveScene({ budget: 1 });
+  assert.equal(first.phase, 'deferred'); assert.equal(first.checkpoint, true);
+  assert.equal(r.entity('OBJECT_1').data.x, 1); assert.equal(r.snapshot().queue.length, 1);
+  const restored = createRuntime({ saved: r.save(), shell });
+  assert.deepEqual(restored.snapshot(), r.snapshot());
+  assert.equal(window(restored, [], { budget: 1 }).checkpoint, true);
+  assert.equal(restored.entity('OBJECT_1').data.x, 2); assert.equal(restored.snapshot().queue.length, 0);
+  window(r, [], { budget: 1 });
+  assert.deepEqual(restored.snapshot(), r.snapshot(), 'Restored and uninterrupted processing are deterministic');
 });
 
 test('causal safety rejects runaway descendants and rolls back', () => {
@@ -226,6 +235,32 @@ test('universal Move changes only the acting Actor location and Shell can forbid
   const fixed = createRuntime({ entities: base(), shell: { actions: { Move: { resolve: () => ({ effects: [{ type: 'move', entity: 'OBJECT_1', location: 'LOCATION_2' }] }) } } } });
   window(fixed, [{ actor: 'ACTOR_1', type: 'Move', params: { location: 'LOCATION_2' } }]);
   assert.equal(fixed.entity('ACTOR_1').primaryLocation, 'LOCATION_2'); assert.equal(fixed.entity('OBJECT_1').primaryLocation, 'LOCATION_1');
+});
+
+test('Give transfers transitively possessed nested Entities', () => {
+  const r = createRuntime({ entities: [
+    ...base(),
+    { id: 'CONTAINER_1', container: 'ACTOR_PLAYER' },
+    { id: 'NESTED_1', container: 'CONTAINER_1' },
+  ] });
+  window(r, [{ actor: 'ACTOR_PLAYER', type: 'Give', targets: ['NESTED_1', 'ACTOR_2'] }]);
+  assert.equal(r.entity('NESTED_1').container, 'ACTOR_2');
+  assert.equal(r.entity('CONTAINER_1').container, 'ACTOR_PLAYER');
+  assert(r.why('NESTED_1', 'container').nodes.some(record => record.attempt?.type === 'Give'));
+});
+
+test('Interact emits a meaningful Event with no default state effect and allows downstream Shell Consequences', () => {
+  const neutral = createRuntime({ entities: base(), shell: { actions: { Interact: { resolve: () => ({ effects: [{ type: 'data', entity: 'OBJECT_1', key: 'wrong', value: true }] }) } } } });
+  window(neutral, [{ actor: 'ACTOR_PLAYER', type: 'Interact', targets: ['OBJECT_1'] }]);
+  assert.deepEqual(neutral.entity('OBJECT_1').data, {});
+  assert(neutral.history().some(record => record.event?.type === 'action.resolved' && record.event.data.action === 'Interact'));
+  assert.equal(neutral.history().filter(record => record.consequence).length, 0);
+
+  const extended = createRuntime({ entities: base(), shell: { consequences: ({ event }) => event.event.data.action === 'Interact'
+    ? [{ type: 'data', entity: 'OBJECT_1', key: 'responded', value: true }]
+    : [] } });
+  window(extended, [{ actor: 'ACTOR_PLAYER', type: 'Interact', targets: ['OBJECT_1'] }]);
+  assert.equal(extended.entity('OBJECT_1').data.responded, true);
 });
 
 test('weighted selection is probabilistic, zero-safe, deterministic and explains ties in contests', () => {
@@ -269,7 +304,8 @@ test('creation, retirement, Relation and Global changes all retain provenance', 
 test('budget exhaustion queues a newly satisfied Situation before offering a checkpoint', () => {
   const r = createRuntime({ entities: [...base(), situation()], shell: { actions: { RelocateObject: relocateObject } } });
   const first = window(r, [{ actor: 'ACTOR_PLAYER', type: 'RelocateObject', targets: ['OBJECT_1'], params: { location: 'LOCATION_2' } }], { budget: 1 });
-  assert.equal(first.phase, 'deferred'); assert.equal(first.checkpoint, false);
+  assert.equal(first.phase, 'deferred'); assert.equal(first.checkpoint, true);
+  assert.doesNotThrow(() => r.save());
   assert.equal(r.entity('SITUATION_1').lifecycle, 'active');
   assert.equal(window(r, [], { budget: 1 }).checkpoint, true);
   assert.equal(r.entity('SITUATION_1').lifecycle, 'resolved');
@@ -298,6 +334,21 @@ test('dynamic availability uses the same eligibility rules and does not persist 
   } });
   const before = r.snapshot(); assert.deepEqual(r.available('ACTOR_PLAYER').map(a => a.type), ['Wait']);
   assert.deepEqual(r.snapshot(), before);
+});
+
+test('unexpected eligibility errors remain visible while ordinary denial filters candidates', () => {
+  const shell = {
+    available: ({ actor }) => [{ actor: actor.id, type: 'Denied' }, { actor: actor.id, type: 'Broken' }],
+    actions: {
+      Denied: { eligible: () => false, resolve: () => ({ effects: [] }) },
+      Broken: { eligible: () => { throw new Error('eligibility defect'); }, resolve: () => ({ effects: [] }) },
+    },
+  };
+  const r = createRuntime({ entities: base(), shell });
+  assert.throws(() => r.available('ACTOR_PLAYER'), /eligibility defect/);
+  r.startScene(); r.submit({ actor: 'ACTOR_PLAYER', type: 'Broken' }); const before = r.snapshot();
+  assert.throws(() => r.resolveScene(), /eligibility defect/);
+  assert.deepEqual(r.snapshot(), before, 'Unexpected hook failures roll back the boundary');
 });
 
 test('Situation parent cycles and malformed priorities are structural errors', () => {
