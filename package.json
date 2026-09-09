@@ -1,0 +1,9 @@
+{
+  "name": "living-world-engine-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/api/index.js",
+  "scripts": { "test": "node --test" },
+  "engines": { "node": ">=22" }
+}
