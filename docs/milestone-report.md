@@ -1,10 +1,12 @@
-# Six-pillar, multi-Actor, and lifecycle-integrity milestone report
+# Six-pillar Core and optional Dice milestone report
 
 The clean implementation executes the semantic-free acceptance lifecycle in LWE-Core. OBJECT_1 moves from LOCATION_1 to LOCATION_2 through the fixture-defined `RelocateObject` Shell Action after the player waits and ACTOR_1 communicates an alternate request to ACTOR_2. The Situation persists across Scenes, resolves through a Consequence, and the movement's WHY trace reaches both communications and the player's Wait. The tests also execute two tiny Shell resolvers with different semantic data without modifying Core.
 
 The multi-Actor stress pass adds one small generic hook for Shell-declared competing attempt groups. Core orders numeric values under Shell-selected direction and tie policy, settles each attempt, and revalidates the next against the resulting objective state. The stress fixtures also cover stale and incomplete Actor Views, three terminal paths, Player/autonomous parity, and seeded weighted desires without adding a gameplay pillar.
 
 The lifecycle-integrity pass serializes future Action batches at safe checkpoints and preserves deterministic conflict resolution across restoration. Nested Scene Consequences now remain causal inputs when a parent resumes, while ending a parent produces explicit cancellation Events. Partial conflict resolution remains inside one atomic, unsaveable Scene transaction.
+
+The optional Dice pass adds a standalone ESM package for expressions, caller modifiers, target checks, neutral candidate selection, opposed sides, caller-defined classification, and serializable seeded RNG state. Shell integration tests bridge its numeric results into ordinary Actions and conflicts while mandatory Core remains dependency-free.
 
 ## A. Files created or changed
 
@@ -27,11 +29,14 @@ Created:
 - `src/infrastructure/rules/index.js`
 - `src/infrastructure/persistence/index.js`
 - `packages/dice/README.md`
+- `packages/dice/index.js`
+- `packages/dice/package.json`
 - `tests/fixtures.js`
 - `tests/acceptance.test.js`
 - `tests/invariants.test.js`
 - `tests/conflicts.test.js`
 - `tests/lifecycle-conflicts.test.js`
+- `tests/dice.test.js`
 
 The authoritative Word architecture files were read and not modified. No files outside LWE-Core were changed.
 
@@ -58,19 +63,19 @@ Deferred, not falsely presented as complete: migration from nonexistent earlier 
 
 ## D. Selective OGLWE reuse
 
-None. All runtime code was written from the architecture contracts. No legacy implementation was copied or adapted.
+The review was limited to the isolated `OGLWE/www/js/lwe_dice.js`. Its expression grammar, numeric limits, safe arithmetic, injected-RNG validation, candidate-roll structure, and caller-defined classification were suitable foundations for the optional package. They were adapted to a small ESM API with neutral keep policies, a numeric modifier, selectable comparisons, opposed sides, and serializable seeded RNG state. No six-pillar runtime code was reused.
 
 ## E. Inspected but rejected OGLWE components
 
-None at implementation level. A read-only filename search located the suggested candidate files; their contents were not inspected because this small milestone did not require reuse. Accordingly, no component is claimed to have undergone a compatibility review or to have been rejected after one. The prohibited architectural foundations were not used. OGLWE was not modified.
+From `lwe_dice.js`, the UMD/CommonJS/global wrapper, verbose cloned error details, sourced modifier records, and outcome-policy callback were unnecessary for the new boundary. The legacy file contained no game-specific UI, Scene, named-stat, or fictional target logic to reject. Kisaragi `dice.js` was not inspected or reused. OGLWE was not modified.
 
 ## F. Dice
 
-Deferred. `packages/dice/README.md` records the intended optional boundary. Core has zero Dice dependencies and all tests run without Dice, AI, UI or external Shell installations.
+Implemented as optional infrastructure under `packages/dice/`. Core has zero Dice imports and continues to run independently. Dice owns only numeric/random resolution; Shells own modifiers, target meaning, Action outcomes, and persistence of any Dice RNG snapshot beside the Core save envelope.
 
 ## G. Tests
 
-Command: `node --test` on the bundled Node runtime. Lifecycle-integrity stress run: **47 passed, 0 failed, 0 skipped**.
+Command: `node --test` on the bundled Node runtime. Optional Dice run: **56 passed, 0 failed, 0 skipped**.
 
 Coverage includes the acceptance lifecycle; fixture-defined object relocation; two small Shell adapters; invalid IDs/references/data/containment; frozen snapshots and hooks; rollback; delayed valid and stale work; false claims and lineage; forgetting independent of history; awareness and evidence guards; safe autonomous Decision Context contents; desire-weighted autonomous selection; explicit off-screen authorization; hidden Situation expiry and legitimate repeated opportunity content; causal budgets and depth safety; multiple causes; universal Actor-only Move, nested Give, and effect-neutral Interact with downstream Shell Consequences; competing Actions with immediate revalidation; deterministic, seeded-random, no-winner, and compatible-simultaneous ties; stale and incomplete Views; three Situation paths; Player/autonomous parity; weighted selection; nested Scenes; save version/reference validation; deterministic restoration with already-due queued work; re-entry; creation, retirement, Relations and Globals; post-effect perception; dynamic availability; visible eligibility hook failures; and checkpoint safety when a final budgeted effect satisfies a Situation.
 
@@ -91,6 +96,6 @@ Persistent world records use Entities, while Relations/Globals and scene-control
 
 ## J. Recommended next step
 
-Build the first small real Shell adapter to validate these generic contracts against application needs. Keep Dice optional and deferred until a Shell demonstrates that it needs that package boundary.
+Build the first small HearthVale adapter against the public Core and optional Dice boundaries without importing HearthVale semantics into either package.
 
 The requested milestone is a local commit only. No push or external integration is part of this work.

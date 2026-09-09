@@ -28,7 +28,7 @@ Rules, persistence, diagnostics, and optional packages support these pillars. Th
 
 ## Current milestone
 
-The semantic-free six-pillar lifecycle, its contract-conformance corrections, and the multi-Actor stress milestone are implemented.
+The semantic-free six-pillar lifecycle, its contract-conformance and stress milestones, and the optional Dice package are implemented.
 
 - Universal `Move` changes only the acting Actor's primary location.
 - The acceptance fixture moves `OBJECT_1` through its Shell-defined `RelocateObject` Action.
@@ -38,11 +38,12 @@ The semantic-free six-pillar lifecycle, its contract-conformance corrections, an
 - A Shell may declare groups of competing submitted attempts and provide numeric ordering plus a deterministic tie policy. Core settles and revalidates each ordered attempt without assigning semantic meaning or Player priority.
 - `deferAttempts(attempts, due)` stores future Action attempts in serializable Core control state; restored runtimes resolve them once with the re-supplied Shell policy and saved RNG state.
 - Nested Scenes preserve parent attempts. Resume and transform revalidate them against nested changes; end records explicit cancellation Events.
+- Shells may import the standalone `packages/dice` API for numeric checks and contests. Core has no Dice import or runtime dependency.
 - Important Situations use Shell-controlled opportunity cadence and can resurface without a hard-coded lifetime count.
 - Completed Scene boundaries are serializable even when a causal budget leaves pending work. The queue and deterministic control state restore exactly; active or suspended Scenes remain unsavable.
 - Expected Action denials become unavailable or failed attempts. Unexpected eligibility errors remain visible and roll back Scene resolution.
 
-Core has no Dice, HearthVale, Kisaragi, AI, UI, or browser dependency.
+Core has no Dice, HearthVale, Kisaragi, AI, UI, or browser dependency. Dice is an optional sibling package and HearthVale is not integrated.
 
 ## Run the tests
 
@@ -70,7 +71,7 @@ src/
     rules/
     persistence/
 packages/
-  dice/                 # deferred optional package; no Core dependency
+  dice/                 # implemented optional package; no Core dependency
 tests/
 docs/
 ```

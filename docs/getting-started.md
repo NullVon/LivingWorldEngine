@@ -2,7 +2,7 @@
 
 A small, dependency-free implementation of the six LWE Core pillars. Core owns structure and generic resolution; Shell owns meaning. The authoritative architecture is in the two Word documents under `docs/`.
 
-This is a contract-focused Core, not a complete game engine. It has no Dice, AI, browser, UI, or named-Shell dependency.
+This is a contract-focused Core, not a complete game engine. It has no Dice, AI, browser, UI, or named-Shell dependency. The sibling Dice package is optional and imported only by Shells that need it.
 
 ## Run
 
@@ -71,7 +71,7 @@ Future Action batches created by `deferAttempts` are also saved with their due b
 | Events + Consequences | `src/core/events-consequences/index.js` | Event records, effects, delayed validation, causal queue and WHY |
 | Scene Progression | `src/core/scene-progression/index.js` | Single heartbeat, stage ordering, budgets, off-screen decisions, interruptions and checkpoints |
 
-Rules, JSON record helpers, persistence, and the public API are supporting infrastructure. `packages/dice/` documents the deferred optional package; Core has no import from it.
+Rules, JSON record helpers, persistence, and the public API are supporting infrastructure. `packages/dice/` provides optional numeric resolution for Shells; Core has no import from it.
 
 ## Shell contract
 
@@ -97,6 +97,6 @@ Effects carry a generic operation plus optional `due` (absolute progression boun
 
 ## Scope
 
-Working but deliberately minimal: numeric weighting, Shell-declared competing-attempt groups, deterministic tie policies, immediate Action revalidation, structural predicates, terminal Situation paths, explicit opportunity disclosures, explicit forgetting, manual interruption, and version-1 persistence. Deferred: semantic game policies, history compaction, previous-version migrations, automatic interruption triggers, retention scheduling, richer conflict models, and Dice.
+Working but deliberately minimal: numeric weighting, Shell-declared competing-attempt groups, deterministic tie policies, immediate Action revalidation, structural predicates, terminal Situation paths, explicit opportunity disclosures, explicit forgetting, manual interruption, and version-1 persistence. The optional Dice package is independent infrastructure. Deferred: semantic game policies, history compaction, previous-version migrations, automatic interruption triggers, retention scheduling, and richer conflict models.
 
-The milestone report is [milestone-report.md](milestone-report.md). `OGLWE` remains read-only historical material. No code was copied from it.
+The milestone report is [milestone-report.md](milestone-report.md). The read-only historical Dice review was limited to `OGLWE/www/js/lwe_dice.js`; compatible concepts were selectively adapted into the optional package. OGLWE was not modified.
